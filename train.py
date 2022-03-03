@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from options import TrainOptions, train_options
+from options.train_options import TrainOptions
 from eventModule import EventModule
 from torchvision import transforms as T
 from datasets.augmentations.generate_transforms import generate_validation_transform
@@ -25,9 +25,13 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(train_opt.seed)
     train_opt.phase = 'train'
 
+    val_opt = TrainOptions().parse()
+    val_opt.phase = 'val'
+    val_opt.batch_size = 1
+
     # Create SegModule
 
-    eventModule = EventModule(train_opt)
+    eventModule = EventModule(train_opt, val_opt)
 
     # Load pretrained weight of model (for old version)
     if train_opt.pretrained is not None:
@@ -41,8 +45,8 @@ if __name__ == '__main__':
 
     # Save checkpoint callback
     checkpoint_callback = ModelCheckpoint(
-        monitor='total_loss',
-        filename='best-{epoch:02d}-{total_loss:.2f}',
+        monitor='val_loss',
+        filename='best-{epoch:02d}-{val_loss:.2f}',
         # monitor='metrics_iou',
         # filename='best-{epoch:02d}-{metrics_iou:.2f}',
         save_last=True,
@@ -53,7 +57,7 @@ if __name__ == '__main__':
 
     # Early stopping callback
     early_stopping_callback = EarlyStopping(
-        monitor='total_loss',
+        monitor='val_loss',
         # monitor='metrics_iou',
         min_delta=0.00,
         patience=train_opt.patience,

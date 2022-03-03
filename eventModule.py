@@ -37,8 +37,8 @@ class EventModule(LightningModule):
     def training_step(self, batch, batch_idx):
         image, label = batch
         outputs = self(image)
-        # if len(self.output_weights) == 1:
-        #     outputs = [outputs]
+        if len(self.output_weights) == 1:
+            outputs = [outputs]
 
         total_loss = 0
         for loss_name, criteria in self.criterion:
@@ -55,8 +55,8 @@ class EventModule(LightningModule):
         image, label = batch
         with torch.no_grad():
             outputs = self(image)
-        # if len(self.output_weights) == 1:
-        #     outputs = [outputs]
+        if len(self.output_weights) == 1:
+            outputs = [outputs]
         # pred = torch.sigmoid(outputs)
         total_loss = 0
         for loss_name, criteria in self.criterion:

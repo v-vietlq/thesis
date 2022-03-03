@@ -7,7 +7,7 @@ python train.py \
 --train_root ../CUFED/images \
 --train_list filenames/train_single.txt \
 --val_list filenames/val.txt \
---batch_size 4 \
+--batch_size 2 \
 --save_dir checkpoints \
 --max_epoch 80 \
 --optimizer adam \
@@ -16,7 +16,7 @@ python train.py \
 --lr_policy multi_step \
 --lr_milestones 30 50 70 90 100 110 \
 --lr_gamma 0.5 \
---patiencece 20 \
+--patience 20 \
 --loss asymmetric \
 --gpus -1 \
 --accelerator ddp

@@ -11,6 +11,10 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--train_data_sign', nargs="+", type=str, help='list of data_type: vistas bdd')
         
         parser.add_argument('--num_val_images', type=int, help='number of images to evaluate after each epoch')
+        parser.add_argument('--event_type_pth', type=str,
+                        default='../CUFED/event_type.json')
+        parser.add_argument('--image_importance_pth', type=str,
+                        default='../CUFED/image_importance.json')
         
         ## Augmentations
         parser.add_argument('--crop_width', type=int, default=1024, help='cropping width during training')

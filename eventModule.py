@@ -75,7 +75,7 @@ class EventModule(LightningModule):
             
         self.log('val_loss', total_losses, on_step=False, on_epoch=True, sync_dist=True)
 
-
+        
     def test_step(self, batch, batch_idx):
        return
 

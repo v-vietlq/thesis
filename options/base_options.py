@@ -1,10 +1,6 @@
 import argparse
 import os
-from util import util
 import torch
-import models
-import data
-
 
 class BaseOptions():
     def __init__(self):
@@ -15,17 +11,17 @@ class BaseOptions():
         parser.add_argument('--scaled_height', type=int, default=384, help='input height of the model')
         parser.add_argument('--name', type=str, default='experiment_name', help='name of the experiment')
         parser.add_argument('--dataset', type=str, default='roadlanemark', help='chooses which dataset to load.')
-        parser.add_argument('--num_labels', type=int, help='number of labels')
-        parser.add_argument('--model', type=str, default='unet_resnet34', help='choose the backbone for semantic segmentation')
+        parser.add_argument('--num_classes', type=int, help='number of labels')
+        parser.add_argument('--backbone', type=str, default='resnet34', help='choose the backbone for semantic segmentation')
         parser.add_argument('--pretrained', type=str, help='pretrained model path (.ckpt or .pth)')
         parser.add_argument('--num_threads', default=8, type=int, help='# threads for loading data')
         parser.add_argument('--seed', type=int, default=0, help='seed for random generators')
         parser.add_argument('--use_ocr', action='store_true', help='apply OCR')
 
         parser.add_argument('--normalization', default='imagenet', help='normalization type: imagenet, default (1/255)')
-        parser.add_argument('--val_root', required=True, help='root folder containing images for validation')
-        parser.add_argument('--val_list', required=True, help='.txt file containing validation image list')
-        parser.add_argument('--val_data_sign', required=True, nargs="+", type=str, help='list of data_type. e.g vistas bdd')
+        parser.add_argument('--val_root', required=False, help='root folder containing images for validation')
+        parser.add_argument('--val_list', required=False, help='.txt file containing validation image list')
+
 
         parser.add_argument('--save_dir', type=str, default='./checkpoints', help='where checkpoints and log are save. The final saved dir would be: <save_dir>/<name>/version_<0,1,2...>/')
         parser.add_argument('--batch_size', type=int, default=2, help='input batch size')

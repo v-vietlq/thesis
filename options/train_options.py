@@ -8,13 +8,13 @@ class TrainOptions(BaseOptions):
         ## Paths
         parser.add_argument('--train_root', help='root folder containing images for training')
         parser.add_argument('--train_list', help='.txt file containing training image list')
-        parser.add_argument('--train_data_sign', nargs="+", type=str, help='list of data_type: vistas bdd')
         
         parser.add_argument('--album_clip_length', type=int, help='length of album', default= 32)
         parser.add_argument('--event_type_pth', type=str,
                         default='../CUFED/event_type.json')
         parser.add_argument('--image_importance_pth', type=str,
                         default='../CUFED/image_importance.json')
+        parser.add_argument('--threshold', type=float, default=0.85)
         
         ## Augmentations
         parser.add_argument('--crop_width', type=int, default=1024, help='cropping width during training')
@@ -26,7 +26,7 @@ class TrainOptions(BaseOptions):
         
         parser.add_argument('--resume', type=str, help='resume path for continue training (.ckpt)')
 
-        parser.add_argument('--max_epoch', type=int, default=1000, help='maximum epochs')
+        parser.add_argument('--max_epoch', type=int, default=100, help='maximum epochs')
 
         parser.add_argument('--optimizer', type=str, default='adam', help='optimizer to be used: adam, sgd')
         parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate for optimizer')

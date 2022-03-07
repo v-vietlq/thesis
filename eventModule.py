@@ -1,3 +1,4 @@
+from cProfile import label
 from functools import total_ordering
 import os
 import random
@@ -10,6 +11,7 @@ from torch.utils.data import DataLoader
 from models.clsnetwork import *
 from pytorch_lightning.core.lightning import LightningModule
 from utils.loss import FocalLoss, AsymmetricLossOptimized
+from utils.utils import AP_partial
 class EventModule(LightningModule):
         
     def __init__(self, main_opt, val_opt=None):
@@ -57,23 +59,22 @@ class EventModule(LightningModule):
             outputs = self(image)
         if len(self.output_weights) == 1:
             outputs = [outputs]
-        # pred = torch.sigmoid(outputs)
-        total_loss = 0
-        for loss_name, criteria in self.criterion:
-            loss = 0
-            for output, weight in zip(outputs, self.output_weights):
-                # import pdb; pdb.set_trace()
-                loss = loss + weight * criteria(output, label)
-            total_loss = total_loss + loss
-            
-        return total_loss
+        pred = torch.sigmoid(outputs)
+        pred[(pred >= self.train_opt.threshold)] = 1
+        pred[(pred < self.train_opt.threshold)] = 0
+        return pred, label
 
     def validation_epoch_end(self, outputs):
-        total_losses = 0
+        preds, targs = [], []
         for out in outputs:
-            total_losses += out
+            pred, label = out
+            preds.append(pred)
+            targs.append(label)
+        preds,targs = torch.cat(preds).cpu().detach().numpy() , torch.cat(targs).cpu().detach().numpy()
+        
+        acc = AP_partial(targs, preds)
             
-        self.log('val_loss', total_losses, on_step=False, on_epoch=True, sync_dist=True)
+        self.log('mAP', acc, on_step=False, on_epoch=True, sync_dist=True)
 
         
     def test_step(self, batch, batch_idx):

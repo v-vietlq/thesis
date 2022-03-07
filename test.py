@@ -1,5 +1,4 @@
 import torch
-from fastcore.basics import true
 import torch
 import argparse
 import os
@@ -7,7 +6,7 @@ import matplotlib.pyplot as plt
 import torchvision.utils
 from PIL import Image
 import numpy as np
-import timm
+# import timm
 from models.clsnetwork import EventNetwork, EventCnnLstm
 import cv2
 import json

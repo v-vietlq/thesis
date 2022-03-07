@@ -45,24 +45,24 @@ if __name__ == '__main__':
 
     # Save checkpoint callback
     checkpoint_callback = ModelCheckpoint(
-        monitor='val_loss',
-        filename='best-{epoch:02d}-{val_loss:.2f}',
+        monitor='mAP',
+        filename='best-{epoch:02d}-{mAP:.2f}',
         # monitor='metrics_iou',
         # filename='best-{epoch:02d}-{metrics_iou:.2f}',
         save_last=True,
         save_top_k=3,
         verbose=True,
-        mode='min'
+        mode='max'
     )
 
     # Early stopping callback
     early_stopping_callback = EarlyStopping(
-        monitor='val_loss',
+        monitor='mAP',
         # monitor='metrics_iou',
         min_delta=0.00,
         patience=train_opt.patience,
         verbose=False,
-        mode='min'
+        mode='max'
     )
 
     # Logging learning rate callback

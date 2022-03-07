@@ -5,8 +5,8 @@ python train.py \
 --num_threads 4 \
 --seed 2021 \
 --train_root ../CUFED/images \
---train_list filenames/train_single.txt \
---val_list filenames/val.txt \
+--train_list filenames/train_multi.txt \
+--val_list filenames/test.txt \
 --batch_size 2 \
 --save_dir checkpoints \
 --max_epoch 80 \

@@ -121,7 +121,7 @@ if __name__ == '__main__':
     # val_sampler = OrderedSampler(val_dataset, args=train_opt)
 
     val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True,
+        val_dataset, batch_size=val_opt.batch_size, shuffle=False, pin_memory=True,
         num_workers=train_opt.num_threads, drop_last=False)
 
     # for i, (img, target) in enumerate(train_loader):

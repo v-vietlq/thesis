@@ -46,7 +46,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--patience', type=int, default=-1, help='stops training after a number of epochs without improvement')
 
         # Choosing loss functions
-        parser.add_argument('--loss', nargs="+", type=str, default=['ohem', 'tversky'], help='loss options for training: ce, ohem, tversky')
+        parser.add_argument('--loss', nargs="+", type=str, default=['folcal', 'asymmetric'], help='loss options for training: ce, ohem, tversky')
         parser.add_argument('--use_aux', action='store_true', help='apply auxilary loss while training. Currently use with OCR net')
         parser.add_argument('--ocr_alpha_loss', type=float, default=0.4, help='weight for OCR aux loss')
 

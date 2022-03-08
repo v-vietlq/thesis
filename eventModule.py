@@ -32,6 +32,8 @@ class EventModule(LightningModule):
         for loss_name in self.train_opt.loss:
             if loss_name == "asymmetric":
                 self.criterion += [(loss_name, AsymmetricLossOptimized())]
+            elif loss_name == "focal":
+                self.criterion += [(loss_name, FocalLoss())]
 
     def forward(self, x):
         return self.net(x)
@@ -57,8 +59,6 @@ class EventModule(LightningModule):
         image, label = batch
         with torch.no_grad():
             outputs = self(image)
-        if len(self.output_weights) == 1:
-            outputs = [outputs]
         pred = torch.sigmoid(outputs)
         pred[(pred >= self.train_opt.threshold)] = 1
         pred[(pred < self.train_opt.threshold)] = 0
@@ -98,6 +98,9 @@ class EventModule(LightningModule):
             scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.train_opt.lr_gamma)
         elif self.train_opt.lr_policy == "step":
             scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.train_opt.lr_step, gamma=self.train_opt.lr_gamma)
+        elif self.train_opt.lr_policy == 'cosine':
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, self.trainer.max_epochs, 0)
         elif self.train_opt.lr_policy == "multi_step":
             scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.train_opt.lr_milestones, gamma=self.train_opt.lr_gamma)
         return [optimizer], [{'scheduler': scheduler, 'name': 'lr'}]

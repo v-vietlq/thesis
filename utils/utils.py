@@ -80,13 +80,13 @@ def trunc_normal_(x, mean=0., std=1.):
     return x.normal_().fmod_(2).mul_(std).add_(mean)
 
 
-def enable_detach():
-    to_detach.__defaults__ = (True, True)
+# def enable_detach():
+#     to_detach.__defaults__ = (True, True)
 
-def accuracy(inp, targ, axis=-1):
-    "Compute accuracy with `targ` when `pred` is bs * n_classes"
-    pred,targ = flatten_check(inp.argmax(dim=axis), targ)
-    return (pred == targ).float().mean()
+# def accuracy(inp, targ, axis=-1):
+#     "Compute accuracy with `targ` when `pred` is bs * n_classes"
+#     pred,targ = flatten_check(inp.argmax(dim=axis), targ)
+#     return (pred == targ).float().mean()
 
 
 def average_precision(output, target):
@@ -155,7 +155,7 @@ def validate(model, val_loader):
                 target = target.repeat(pred.size()[0], 1)
             targets.append(target.cpu())
     mAP_score = mAP(torch.cat(targets).numpy(), torch.cat(preds).numpy())
-    enable_detach()
+    # enable_detach()
 
     return mAP_score
 

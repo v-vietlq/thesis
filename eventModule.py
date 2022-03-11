@@ -21,18 +21,20 @@ class EventModule(LightningModule):
             self.test_opt = main_opt
             self.save_hyperparameters(vars(main_opt))
             if self.test_opt.use_transformer:
-                self.net = EventCnnLstm(main_opt.backbone, main_opt.num_classes)
-            else:
                 self.net = MTResnetAggregate(self.test_opt)
+            else:
+                self.net = EventCnnLstm(main_opt.backbone, main_opt.num_classes)
+                
             return
 
         self.train_opt = main_opt
         self.save_hyperparameters(vars(main_opt))
         self.val_opt = val_opt
         if self.train_opt.use_transformer:
-            self.net = EventCnnLstm(self.train_opt.backbone, self.train_opt.num_classes)
+            self.net = MTResnetAggregate(self.train_opt)         
         else:
-            self.net = MTResnetAggregate(self.train_opt)
+            self.net = EventCnnLstm(self.train_opt.backbone, self.train_opt.num_classes)
+            
         
         self.output_weights = [1]
         self.criterion = []
@@ -49,7 +51,7 @@ class EventModule(LightningModule):
         image, label = batch
         if self.train_opt.use_transformer:
             batch_size, time_steps, channels, height, width = image.size()
-            image = input.view(batch_size * time_steps, channels, height, width)
+            image = image.view(batch_size * time_steps, channels, height, width)
         outputs = self(image)
         if len(self.output_weights) == 1:
             outputs = [outputs]
@@ -67,6 +69,9 @@ class EventModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         image, label = batch
+        if self.train_opt.use_transformer:
+            batch_size, time_steps, channels, height, width = image.size()
+            image = image.view(batch_size * time_steps, channels, height, width)
         with torch.no_grad():
             outputs = self(image)
         pred = torch.sigmoid(outputs)

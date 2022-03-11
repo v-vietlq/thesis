@@ -75,33 +75,34 @@ if __name__ == '__main__':
     # Create Trainer
     trainer = pl.Trainer(gpus=train_opt.gpus,
                          resume_from_checkpoint=train_opt.resume,
+                         auto_lr_find= True,
                          accelerator=train_opt.accelerator,
                          logger=logger,
                          max_epochs=train_opt.max_epoch,
                          callbacks=[early_stopping_callback, checkpoint_callback, lr_monitor])
 
     train_transform = T.Compose([
-        # T.RandomResizedCrop((224, 224)),
-        # T.RandomRotation(degrees=30.),
-        # T.RandomPerspective(distortion_scale=0.4),
+        T.RandomResizedCrop((224, 224)),
+        T.RandomRotation(degrees=30.),
+        T.RandomPerspective(distortion_scale=0.4),
         T.Resize((224, 224)),
         T.RandomHorizontalFlip(p=0.5),
         T.RandomVerticalFlip(p=0.5),
         T.ToTensor(),
-        T.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225)
-        ),
+        # T.Normalize(
+        #     mean=(0.485, 0.456, 0.406),
+        #     std=(0.229, 0.224, 0.225)
+        # ),
 
     ])
 
     val_transform = T.Compose([
         T.Resize((224, 224)),
         T.ToTensor(),
-        T.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225)
-        ),
+        # T.Normalize(
+        #     mean=(0.485, 0.456, 0.406),
+        #     std=(0.229, 0.224, 0.225)
+        # ),
 
     ])
     

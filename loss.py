@@ -243,7 +243,7 @@ class FocalLoss(nn.Module):
         """
         logits & target should be tensors with shape [batch_size, num_classes]
         """
-        probs = F.sigmoid(logits)
+        probs = torch.sigmoid(logits)
         one_subtract_probs = 1.0 - probs
         # add epsilon
         probs_new = probs + self.epsilon

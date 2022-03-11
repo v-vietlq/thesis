@@ -101,24 +101,42 @@ class EventModule(LightningModule):
     def configure_optimizers(self):
 
         # Create optimizer
-        optimizer = None
+        self.optimizer = None
         if self.train_opt.optimizer == "sgd":
-            optimizer = torch.optim.SGD(self.net.parameters(), lr=self.train_opt.lr, momentum=self.train_opt.momentum, weight_decay=self.train_opt.weight_decay)
+            self.optimizer = torch.optim.SGD(
+                self.net.parameters(),
+                lr=self.atrain_optrgs.lr,
+                momentum=self.train_opt.momentum,
+                weight_decay=self.train_opt.weight_decay,
+            )
         elif self.train_opt.optimizer == "adam":
-            optimizer = torch.optim.Adam(self.net.parameters(), lr=self.train_opt.lr, weight_decay=self.train_opt.weight_decay)
-        
+            self.optimizer = torch.optim.Adam(
+                self.net.parameters(),
+                lr=self.train_opt.lr,
+                weight_decay=self.train_opt.weight_decay,
+            )
+        elif self.train_opt.optimizer == 'adamw':
+            self.optimizer = torch.optim.AdamW(
+                self.net.parameters(), lr=self.train_opt.lr)
+
         # Create learning rate scheduler
-        scheduler = None
+        self.scheduler = None
         if self.train_opt.lr_policy == "exp":
-            scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=self.train_opt.lr_gamma)
+            self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
+                self.optimizer, gamma=self.train_opt.lr_gamma
+            )
         elif self.train_opt.lr_policy == "step":
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=self.train_opt.lr_step, gamma=self.train_opt.lr_gamma)
-        elif self.train_opt.lr_policy == 'cosine':
-            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer, self.trainer.max_epochs, 0)
+            self.scheduler = torch.optim.lr_scheduler.StepLR(
+                self.optimizer, step_size=self.train_opt.lr_step, gamma=self.train_opt.lr_gamma
+            )
         elif self.train_opt.lr_policy == "multi_step":
-            scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.train_opt.lr_milestones, gamma=self.train_opt.lr_gamma)
+            self.scheduler = torch.optim.lr_scheduler.MultiStepLR(
+                self.optimizer, milestones=self.train_opt.lr_milestones, gamma=self.train_opt.lr_gamma
+            )
+        elif self.train_opt.lr_policy == 'cosine':
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                self.optimizer, self.trainer.max_epochs, 0)
         elif self.train_opt.lr_policy =='onecycle':
-            scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.train_opt.lr, steps_per_epoch=len(self.train_dataloader()), epochs=self.train_opt.max_epoch,
+            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=self.train_opt.lr, steps_per_epoch=len(self.trainer._data_connector._train_dataloader_source.dataloader()), epochs=self.train_opt.max_epoch,
                                         pct_start=0.2)
-        return [optimizer], [{'scheduler': scheduler, 'name': 'lr'}]
+        return [self.optimizer], [{"scheduler": self.scheduler, "name": "lr"}]

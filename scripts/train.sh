@@ -7,13 +7,13 @@ python train.py \
 --train_root ../CUFED/images \
 --train_list filenames/train_multi.txt \
 --val_list filenames/test.txt \
---batch_size 2 \
+--batch_size 3 \
 --save_dir checkpoints \
 --max_epoch 80 \
 --optimizer adam \
 --lr 1e-4 \
 --weight_decay 1e-4 \
---lr_policy multi_step \
+--lr_policy onecycle \
 --lr_milestones 30 50 70 90 100 110 \
 --lr_gamma 0.5 \
 --patience 20 \

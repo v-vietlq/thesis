@@ -44,12 +44,10 @@ class SpaceToDepth(nn.Module):
 
     def forward(self, x):
         N, C, H, W = x.size()
-        print(N, C, H , W)
         x = x.view(N, C, H // self.bs, self.bs, W // self.bs, self.bs)  # (N, C, H//bs, bs, W//bs, bs)
         x = x.permute(0, 3, 5, 1, 2, 4).contiguous()  # (N, bs, bs, C, H//bs, W//bs)
         x = x.view(N, C * (self.bs ** 2), H // self.bs, W // self.bs)  # (N, C*bs^2, H//bs, W//bs)
         
-        print(x.shape)
         return x
 
 
@@ -61,7 +59,6 @@ class SpaceToDepthJit(object):
         x = x.view(N, C, H // 4, 4, W // 4, 4)  # (N, C, H//bs, bs, W//bs, bs)
         x = x.permute(0, 3, 5, 1, 2, 4).contiguous()  # (N, bs, bs, C, H//bs, W//bs)
         x = x.view(N, C * 16, H // 4, W // 4)  # (N, C*bs^2, H//bs, W//bs)
-        print(x.shape)
         return x
 
 

@@ -51,6 +51,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--ocr_alpha_loss', type=float, default=0.4, help='weight for OCR aux loss')
 
         # use transformer
+        parser.add_argument('--transformers_pos', type=int, default=1)
         parser.add_argument('--use_transformer', type=int, default=1)
         return parser
 

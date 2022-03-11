@@ -1,12 +1,12 @@
 import torch.nn as nn
 from models.tresnet.tresnet import TResNet
-from models.utils.registry import register_model
+# from models.utils.registry import register_model
 from models.aggregate.layers.frame_pooling_layer import Aggregate
 from models.aggregate.layers.transformer_aggregate import TAggregate
 # from src.models.resnet.resnet import Bottleneck as ResnetBottleneck
-from models.resnet.resnet import ResNet
+# from models.resnet.resnet import ResNet
 
-__all__ = ['MTResnetAggregate']
+# __all__ = ['MTResnetAggregate']
 
 
 class fTResNet(TResNet):
@@ -34,21 +34,21 @@ class fTResNet(TResNet):
         return logits
 
 
-class fResNet(ResNet):
-    def __init__(self, aggregate=None, **kwargs):
-        super().__init__(**kwargs)
-        self.aggregate = aggregate
+# class fResNet(ResNet):
+#     def __init__(self, aggregate=None, **kwargs):
+#         super().__init__(**kwargs)
+#         self.aggregate = aggregate
 
-    def forward(self, x):
-        x = self.body(x)
-        if self.aggregate:
-            x = self.head.global_pool(x)
-            x, attn_weight = self.aggregate(x)
-            logits = self.head.fc(self.head.FlattenDropout(x))
+#     def forward(self, x):
+#         x = self.body(x)
+#         if self.aggregate:
+#             x = self.head.global_pool(x)
+#             x, attn_weight = self.aggregate(x)
+#             logits = self.head.fc(self.head.FlattenDropout(x))
 
-        else:
-            logits = self.head(x)
-        return logits
+#         else:
+#             logits = self.head(x)
+#         return logits
 
 
 def MTResnetAggregate(args):

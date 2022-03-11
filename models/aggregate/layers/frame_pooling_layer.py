@@ -140,6 +140,6 @@ class Aggregate(nn.Module):
   def forward(self, x, filenames=None):
     nvids = x.shape[0] // self.clip_length
     x = x.view((-1, self.clip_length) + x.size()[1:])
-    print(x.shape)
+    # print(x.shape)
     o = x.mean(dim=1)
     return o

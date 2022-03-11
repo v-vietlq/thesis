@@ -10,8 +10,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from models.clsnetwork import *
 from pytorch_lightning.core.lightning import LightningModule
-from utils.loss import FocalLoss, AsymmetricLossOptimized
+from utils.loss import FocalLoss, AsymmetricLossOptimized, AsymmetricLoss
 from utils.utils import AP_partial
+from models.models import MTResnetAggregate
 class EventModule(LightningModule):
         
     def __init__(self, main_opt, val_opt=None):
@@ -19,19 +20,25 @@ class EventModule(LightningModule):
         if val_opt is None: # test phase 
             self.test_opt = main_opt
             self.save_hyperparameters(vars(main_opt))
-            self.net = EventCnnLstm(main_opt.backbone, main_opt.num_classes)
+            if self.test_opt.use_transformer:
+                self.net = EventCnnLstm(main_opt.backbone, main_opt.num_classes)
+            else:
+                self.net = MTResnetAggregate(self.test_opt)
             return
 
         self.train_opt = main_opt
         self.save_hyperparameters(vars(main_opt))
         self.val_opt = val_opt
-        self.net  = EventCnnLstm(encoder_name=main_opt.backbone, num_classes=main_opt.num_classes)
+        if self.train_opt.use_transformer:
+            self.net = EventCnnLstm(self.train_opt.backbone, self.train_opt.num_classes)
+        else:
+            self.net = MTResnetAggregate(self.train_opt)
         
         self.output_weights = [1]
         self.criterion = []
         for loss_name in self.train_opt.loss:
             if loss_name == "asymmetric":
-                self.criterion += [(loss_name, AsymmetricLossOptimized())]
+                self.criterion += [(loss_name, AsymmetricLoss(gamma_neg=4, gamma_pos=0, clip=0.05, disable_torch_grad_focal_loss=True))]
             elif loss_name == "focal":
                 self.criterion += [(loss_name, FocalLoss())]
 
@@ -40,6 +47,9 @@ class EventModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         image, label = batch
+        if self.train_opt.use_transformer:
+            batch_size, time_steps, channels, height, width = image.size()
+            image = input.view(batch_size * time_steps, channels, height, width)
         outputs = self(image)
         if len(self.output_weights) == 1:
             outputs = [outputs]
@@ -103,4 +113,7 @@ class EventModule(LightningModule):
                 optimizer, self.trainer.max_epochs, 0)
         elif self.train_opt.lr_policy == "multi_step":
             scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=self.train_opt.lr_milestones, gamma=self.train_opt.lr_gamma)
+        elif self.train_opt.lr_policy =='onecycle':
+            scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=self.train_opt.lr, steps_per_epoch=len(self.train_dataloader()), epochs=self.train_opt.max_epoch,
+                                        pct_start=0.2)
         return [optimizer], [{'scheduler': scheduler, 'name': 'lr'}]

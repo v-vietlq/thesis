@@ -1,3 +1,4 @@
 pytorch_lightning
 inplace_abn
 fastai2
+timm

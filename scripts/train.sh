@@ -11,12 +11,12 @@ python train.py \
 --save_dir '/content/drive/Shareddrives/Research Tech/checkpoints' \
 --max_epoch 150 \
 --optimizer adamw \
---lr 1e-4 \
+--lr 2e-4 \
 --weight_decay 1e-4 \
 --lr_policy onecycle \
 --lr_milestones 30 50 70 90 100 110 \
 --lr_gamma 0.5 \
 --patience 20 \
---loss asymmetric focal \
+--loss asymmetric \
 --gpus -1 \
 --accelerator ddp

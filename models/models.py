@@ -1,23 +1,27 @@
+import imp
 import torch.nn as nn
 from models.tresnet.tresnet import TResNet
 # from models.utils.registry import register_model
 from models.aggregate.layers.frame_pooling_layer import Aggregate
 from models.aggregate.layers.transformer_aggregate import TAggregate
+import timm
 # from src.models.resnet.resnet import Bottleneck as ResnetBottleneck
 # from models.resnet.resnet import ResNet
 
 # __all__ = ['MTResnetAggregate']
 
 
-class fTResNet(TResNet):
+class fTResNet(nn.Module):
 
-    def __init__(self, aggregate=None, *args, **kwargs):
+    def __init__(self,encoder_name ='tresnet_m', num_classes=23, aggregate=None, *args, **kwargs):
         super(fTResNet, self).__init__(*args, **kwargs)
         self.aggregate = aggregate
-
+        self.feature_extraction =  timm.create_model(model_name=encoder_name, pretrained=True)
+        self.head = nn.Linear(self.feature_extraction.num_features, num_classes)
     def forward(self, x, filenames=None):
-        x = self.body(x)
-        self.embeddings = self.global_pool(x)
+        x = self.feature_extraction.forward_features(x)
+        # x = self.body(x)
+        self.embeddings = self.feature_extraction.global_pool(x)
         if self.aggregate:
             if isinstance(self.aggregate, TAggregate):
                 self.embeddings, self.attention = self.aggregate(
@@ -59,10 +63,7 @@ def MTResnetAggregate(args):
     else:
         aggregate = Aggregate(args.album_clip_length, args=args)
 
-    model = fTResNet(layers=[3, 4, 11, 3], num_classes=23, in_chans=in_chans,
-                     do_bottleneck_head=False,
-                     bottleneck_features=None,
-                     aggregate=aggregate)
+    model = fTResNet(encoder_name ='tresnet_m', num_classes=23,aggregate=aggregate)
 
     return model
 

@@ -13,21 +13,21 @@ import json
 import torchvision.transforms as T
 from utils.utils import *
 from dataset import *
-from models import create_model
+from models.models import MTResnetAggregate
 
 # ----------------------------------------------------------------------
 # Parameters
 parser = argparse.ArgumentParser(
     description='PETA: Photo album Event recognition using Transformers Attention.')
 parser.add_argument('--model_path', type=str,
-                    default='/vinai/vietlq4/Event/checkpoints/event/version_65/checkpoints/best-epoch=149-metrics_acc=1.00.ckpt')
+                    default='/content/drive/MyDrive/best-epoch=39-mAP=23.75.ckpt')
 parser.add_argument('--album_path', type=str,
                     default='/home/ubuntu/datasets/CUFED/images/15_74648938@N00')
 # /Graduation') # /0_92024390@N00')
 parser.add_argument('---album_list', type=str,
-                        default='/vinai/vietlq4/Event/filenames/train_single.txt')
+                        default='filenames/test.txt')
 parser.add_argument('--event_type_pth', type=str,
-                            default='/vinai/vietlq4/dataset/CUFED/event_type.json')
+                            default='../CUFED/event_type.json')
 parser.add_argument('--val_dir', type=str, default='./albums')
 parser.add_argument('--num_classes', type=int, default=23)
 parser.add_argument('--model_name', type=str, default='mtresnetaggregate')
@@ -43,7 +43,7 @@ parser.add_argument('--album_clip_length', type=int, default=32)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--num_workers', type=int, default=0)
 parser.add_argument('--top_k', type=int, default=3)
-parser.add_argument('--threshold', type=float, default=0.5)
+parser.add_argument('--threshold', type=float, default=0.85)
 parser.add_argument('--remove_model_jit', type=int, default=None)
 
 
@@ -125,11 +125,12 @@ def load_model(net, path):
 
 def main(classes_list):
     args = parser.parse_args()
-    net = EventNetwork(encoder_name='resnet101', num_classes=args.num_classes).cuda()
+    # net = EventNetwork(encoder_name='resnet101', num_classes=args.num_classes).cuda()
     # net.eval()
     # net = EventCnnLstm(encoder_name='resnet101', num_classes=23).cuda()
     
-    
+    net = MTResnetAggregate(args).cuda()
+    net.eval()
     net = load_model(net, args.model_path)
     net.eval()
     # args = parser.parse_args()
@@ -147,20 +148,20 @@ def main(classes_list):
     val_transform = T.Compose([
         T.Resize((224, 224)),
         T.ToTensor(),
-        T.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225)
-        ),
+        # T.Normalize(
+        #     mean=(0.485, 0.456, 0.406),
+        #     std=(0.229, 0.224, 0.225)
+        # ),
 
     ])
     
     
-    ds = AlbumsDataset(data_path='/home/ubuntu/datasets/CUFED/images',album_list = args.album_list,
+    ds = AlbumsDataset(data_path='../CUFED/images',album_list = args.album_list,
                          transforms=val_transform, args=args)
     
     
     dataloader = data.DataLoader(ds, batch_size= 1, num_workers= 4, shuffle=False)
-    acc = validate(net, dataloader)
+    acc = validate_model(net, dataloader, args.threshold)
     print(acc)
 
     # np_output = output.cpu().detach().numpy()

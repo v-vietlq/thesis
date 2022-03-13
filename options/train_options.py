@@ -53,6 +53,13 @@ class TrainOptions(BaseOptions):
         # use transformer
         parser.add_argument('--transformers_pos', type=int, default=1)
         parser.add_argument('--use_transformer', type=int, default=1)
+
+        parser.add_argument('--gamma_neg', type=int, default=4)
+        parser.add_argument('--gamma_pos', type=int, default=0.05)
+        parser.add_argument('--clip', type=int, default=0.05)
+        parser.add_argument('--num_classes_to_remove_negative_backprop', type=int, default=23)
+        parser.add_argument('--partial_loss_mode', type=str,
+                        default='negative_backprop')
         return parser
 
     # def parse(self):

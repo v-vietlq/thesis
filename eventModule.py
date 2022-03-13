@@ -38,11 +38,18 @@ class EventModule(LightningModule):
         
         self.output_weights = [1]
         self.criterion = []
+        class_weight =torch.Tensor([2.21, 1.873, 1, 1.567,
+                  2.497, 1, 1.622, 1, 2.161,
+                  1, 1.804, 2.027, 2.069,
+                  2.069, 2.027, 1.567, 1.804,
+                  1 , 1.679, 1 , 1, 1, 1]).cuda()
         for loss_name in self.train_opt.loss:
             if loss_name == "asymmetric":
                 self.criterion += [(loss_name, AsymmetricLoss(gamma_neg=4, gamma_pos=0, clip=0.05, disable_torch_grad_focal_loss=True))]
             elif loss_name == "focal":
                 self.criterion += [(loss_name, FocalLoss())]
+            elif loss_name == 'multilabelsoftmagin':
+                self.criterion += [(loss_name, nn.MultiLabelSoftMarginLoss(weight=class_weight))]
 
     def forward(self, x):
         return self.net(x)
@@ -75,8 +82,8 @@ class EventModule(LightningModule):
         with torch.no_grad():
             outputs = self(image)
         pred = torch.sigmoid(outputs)
-        pred[(pred >= self.train_opt.threshold)] = 1
-        pred[(pred < self.train_opt.threshold)] = 0
+        # pred[(pred >= self.train_opt.threshold)] = 1
+        # pred[(pred < self.train_opt.threshold)] = 0
         return pred, label
 
     def validation_epoch_end(self, outputs):

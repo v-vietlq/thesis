@@ -2,6 +2,7 @@ import imp
 import torch.nn as nn
 from models.tresnet.tresnet import TResNet
 # from models.utils.registry import register_model
+from .layers.avg_pool import FastAvgPool2d
 from models.aggregate.layers.frame_pooling_layer import Aggregate
 from models.aggregate.layers.transformer_aggregate import TAggregate
 import timm
@@ -18,10 +19,11 @@ class fTResNet(nn.Module):
         self.aggregate = aggregate
         self.feature_extraction =  timm.create_model(model_name=encoder_name, pretrained=True)
         self.head = nn.Linear(self.feature_extraction.num_features, num_classes)
+        self.global_pool = FastAvgPool2d(flatten=True)
     def forward(self, x, filenames=None):
         x = self.feature_extraction.forward_features(x)
         # x = self.body(x)
-        self.embeddings = self.feature_extraction.global_pool(x)
+        self.embeddings = self.global_pool(x)
         if self.aggregate:
             if isinstance(self.aggregate, TAggregate):
                 self.embeddings, self.attention = self.aggregate(

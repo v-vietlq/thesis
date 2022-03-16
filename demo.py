@@ -1,4 +1,3 @@
-import imp
 from models.clsnetwork import EventCnnLstm
 from models.siamesenetwork import SiameseNetwork
 from models.models import MTResnetAggregate

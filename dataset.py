@@ -11,6 +11,8 @@ from datasets.samplers import *
 from functools import partial
 from datasets.augmentations.generate_transforms import generate_validation_transform
 from torchvision.transforms import transforms as T
+from random import choices
+
 
 
 def fast_collate(batch, clip_length):
@@ -164,6 +166,9 @@ class AlbumsDataset(data.Dataset):
         # cls_dict = json.load(open(args.event_type_pth))
         # event = cls_dict[album_name]
         n_files = len(files)
+        # items = range(0, n_files)
+        # idx_fetch = choices(items, k = self.args.album_clip_length)
+        
         idx_fetch = np.linspace(0, n_files-1, self.args.album_clip_length , dtype=int)
         for i, id in enumerate(idx_fetch):
             im = Image.open(os.path.join(path, files[id])).convert('RGB')

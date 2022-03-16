@@ -14,13 +14,14 @@ import torchvision.transforms as T
 from utils.utils import *
 from dataset import *
 from models.models import MTResnetAggregate
+from options.train_options import TrainOptions
 
 # ----------------------------------------------------------------------
 # Parameters
 parser = argparse.ArgumentParser(
     description='PETA: Photo album Event recognition using Transformers Attention.')
 parser.add_argument('--model_path', type=str,
-                    default='/content/drive/MyDrive/best-epoch=39-mAP=23.75.ckpt')
+                    default='/content/drive2/checkpoints/event_transformer/version_42/checkpoints/best-epoch=02-mAP=51.20.ckpt')
 parser.add_argument('--album_path', type=str,
                     default='/home/ubuntu/datasets/CUFED/images/15_74648938@N00')
 # /Graduation') # /0_92024390@N00')
@@ -110,13 +111,16 @@ def inference(tensor_batch, model, classes_list, args):
 
 def load_model(net, path):
     if path is not None and path.endswith(".ckpt"):
+        print(path)
         state_dict = torch.load(path, map_location='cpu')
+    
         if "state_dict" in state_dict:
             state_dict = state_dict["state_dict"]
         compatible_state_dict = {}
         for k, v in state_dict.items():
-            if k.startswith('net.'):
-                compatible_state_dict[k.replace('net.', '')] = v
+            k = k[4:]
+            compatible_state_dict[k] = v
+
         net.load_state_dict(compatible_state_dict)
 
     return net
@@ -125,12 +129,13 @@ def load_model(net, path):
 
 def main(classes_list):
     args = parser.parse_args()
+    # train_opt = TrainOptions().parse()
     # net = EventNetwork(encoder_name='resnet101', num_classes=args.num_classes).cuda()
     # net.eval()
     # net = EventCnnLstm(encoder_name='resnet101', num_classes=23).cuda()
-    
+    # net.eval()
     net = MTResnetAggregate(args).cuda()
-    net.eval()
+    # print(net)
     net = load_model(net, args.model_path)
     net.eval()
     # args = parser.parse_args()

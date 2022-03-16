@@ -8,7 +8,7 @@ python train.py \
 --train_list filenames/train_multi.txt \
 --val_list filenames/test.txt \
 --batch_size 3 \
---save_dir '/content/drive/Shareddrives/Research Tech/checkpoints' \
+--save_dir '/content/drive2/checkpoints' \
 --max_epoch 150 \
 --optimizer adamw \
 --lr 2e-4 \
@@ -17,6 +17,6 @@ python train.py \
 --lr_milestones 30 50 70 90 100 110 \
 --lr_gamma 0.5 \
 --patience 20 \
---loss asymmetric \
+--loss multilabelsoftmagin \
 --gpus -1 \
 --accelerator ddp

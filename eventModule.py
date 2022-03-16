@@ -82,8 +82,10 @@ class EventModule(LightningModule):
         with torch.no_grad():
             outputs = self(image)
         pred = torch.sigmoid(outputs)
-        # pred[(pred >= self.train_opt.threshold)] = 1
-        # pred[(pred < self.train_opt.threshold)] = 0
+        pred[(pred >= self.train_opt.threshold)] = 1
+        pred[(pred < self.train_opt.threshold)] = 0
+        
+
         return pred, label
 
     def validation_epoch_end(self, outputs):

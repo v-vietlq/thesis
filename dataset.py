@@ -11,8 +11,8 @@ from datasets.samplers import *
 from functools import partial
 from datasets.augmentations.generate_transforms import generate_validation_transform
 from torchvision.transforms import transforms as T
-from random import choices
-
+import random
+from torchvision.datasets import ImageFolder
 
 
 def fast_collate(batch, clip_length):
@@ -138,27 +138,26 @@ class DatasetFromList(data.Dataset):
 
 
 class AlbumsDataset(data.Dataset):
-    def __init__(self,data_path, album_list, transforms, args=None) -> None:
+    def __init__(self, data_path, album_list, transforms, args=None) -> None:
         super().__init__()
         self.args = args
         self.data_path = data_path
-        self.albums  = np.loadtxt(album_list, dtype='str', delimiter='\n')
+        self.albums = np.loadtxt(album_list, dtype='str', delimiter='\n')
         self.transforms = transforms
         self.cls_dict = json.load(open(args.event_type_pth))
         # self.scores_dict = json.load(open(args.image_importance_pth))
-        
+
         self.labels_str = ['Architecture', 'BeachTrip', 'Birthday', 'BusinessActivity',
-                  'CasualFamilyGather', 'Christmas', 'Cruise', 'Graduation', 'GroupActivity',
-                  'Halloween', 'Museum', 'NatureTrip', 'PersonalArtActivity',
-                  'PersonalMusicActivity', 'PersonalSports', 'Protest', 'ReligiousActivity',
-                  'Show', 'Sports', 'ThemePark', 'UrbanTrip', 'Wedding', 'Zoo']
-        
+                           'CasualFamilyGather', 'Christmas', 'Cruise', 'Graduation', 'GroupActivity',
+                           'Halloween', 'Museum', 'NatureTrip', 'PersonalArtActivity',
+                           'PersonalMusicActivity', 'PersonalSports', 'Protest', 'ReligiousActivity',
+                           'Show', 'Sports', 'ThemePark', 'UrbanTrip', 'Wedding', 'Zoo']
+
         self.num_cls = len(self.labels_str)
         self.classes_to_idx = {}
         for i, cls in enumerate(self.labels_str):
             self.classes_to_idx[cls] = i
 
-        
     def _read_album(self, path):
         frames = []
         files = os.listdir(path)
@@ -168,8 +167,9 @@ class AlbumsDataset(data.Dataset):
         n_files = len(files)
         # items = range(0, n_files)
         # idx_fetch = choices(items, k = self.args.album_clip_length)
-        
-        idx_fetch = np.linspace(0, n_files-1, self.args.album_clip_length , dtype=int)
+
+        idx_fetch = np.linspace(
+            0, n_files-1, self.args.album_clip_length, dtype=int)
         for i, id in enumerate(idx_fetch):
             im = Image.open(os.path.join(path, files[id])).convert('RGB')
             im = self.transforms(im)
@@ -177,22 +177,99 @@ class AlbumsDataset(data.Dataset):
             # np_img = np.array(im_resize, dtype=np.uint8)
             # im = torch.from_numpy(np_img).float() / 255.0
             frames.append(im)
-            
+
         return torch.stack(frames)
-    
+
     def __getitem__(self, index):
         album = self.albums[index]
-        
+
         labels = self.cls_dict[album]
         labels_onehot = self.num_cls * [0]
         for lb in labels:
             labels_onehot[self.classes_to_idx[lb]] = 1
-            
+
         return self._read_album(os.path.join(self.data_path, album)), torch.tensor(labels_onehot)
-    
+
     def __len__(self):
         return len(self.albums)
-    
+
+
+class CUFEDImportanceDataset(data.Dataset):
+    def __init__(self, data_path, album_list, transforms, args=None) -> None:
+        super(CUFEDImportanceDataset, self).__init__()
+        self.args = args
+        self.data_path = data_path
+        self.albums = np.loadtxt(album_list, dtype='str', delimiter='\n')
+        self.transforms = transforms
+        self.cls_dict = json.load(open(args.event_type_pth))
+
+        self.labels_str = ['Architecture', 'BeachTrip', 'Birthday', 'BusinessActivity',
+                           'CasualFamilyGather', 'Christmas', 'Cruise', 'Graduation', 'GroupActivity',
+                           'Halloween', 'Museum', 'NatureTrip', 'PersonalArtActivity',
+                           'PersonalMusicActivity', 'PersonalSports', 'Protest', 'ReligiousActivity',
+                           'Show', 'Sports', 'ThemePark', 'UrbanTrip', 'Wedding', 'Zoo']
+
+        self.num_cls = len(self.labels_str)
+        self.classes_to_idx = {}
+        for i, cls in enumerate(self.labels_str):
+            self.classes_to_idx[cls] = i
+
+        self.data = ImageFolder(data_path, transforms)
+
+        self.scores_dict = json.load(open(args.image_importance_pth))
+
+        # print(self.scores_dict.values())
+        self.scores = {img[1]: img[2]
+                       for imgs in self.scores_dict.values() for img in imgs}
+
+        self.index_to_classes = {v: k for k,
+                                 v in self.data.class_to_idx.items()}
+
+        self.max_score = 2
+        self.min_score = -2
+
+    def __getitem__(self, index):
+        img0_tuple = self.data.imgs[index]
+        while True:
+            # keep looping till the same class image is found
+            img1_tuple = random.choice(self.data.imgs)
+            if img0_tuple[1] == img1_tuple[1]:
+                break
+        album = self.index_to_classes[img0_tuple[1]]
+
+        # get label
+        labels = self.cls_dict[album]
+        labels_onehot = self.num_cls * [0]
+        for lb in labels:
+            labels_onehot[self.classes_to_idx[lb]] = 1
+
+        # get score
+        path1 = '/'.join(img0_tuple[0].rsplit("/", 2)[-2:]).split('.')[0]
+        path2 = '/'.join(img1_tuple[0].rsplit("/", 2)[-2:]).split('.')[0]
+        score_img1 = (self.scores[path1] - self.min_score) / \
+            (self.max_score - self.min_score)
+        score_img2 = (self.scores[path2] - self.min_score) / \
+            (self.max_score - self.min_score)
+        # score_img2
+
+        im1 = Image.open(img0_tuple[0]).convert('RGB')
+        im2 = Image.open(img1_tuple[0]).convert('RGB')
+        print('--------')
+        print(img0_tuple[0], score_img1)
+        print(img1_tuple[0], score_img2)
+        print(labels_onehot)
+        print('--------\n')
+        if self.transforms is not None:
+            im1 = self.transforms(im1)
+            im2 = self.transforms(im2)
+
+        # print(class_id)
+        # print(self.data.imgs[class_id])
+
+        return im1, im2, score_img1, score_img2, labels_onehot
+
+    def __len__(self):
+        return len(self.data.imgs)
 
 
 if __name__ == '__main__':
@@ -203,12 +280,12 @@ if __name__ == '__main__':
     parser.add_argument('--album_path', type=str,
                         default='./albums/Graduation/0_92024390@N00')
     parser.add_argument('---album_list', type=str,
-                        default='/vinai/vietlq4/Event/filenames/train.txt')
+                        default='filenames/test.txt')
     # /Graduation') # /0_92024390@N00')
     parser.add_argument('--event_type_pth', type=str,
-                        default='/vinai/vietlq4/dataset/CUFED/event_type.json')
+                        default='/home/vietlq4/Downloads/CUFED/event_type.json')
     parser.add_argument('--image_importance_pth', type=str,
-                        default='/vinai/vietlq4/dataset/CUFED/image_importance.json')
+                        default='/home/vietlq4/Downloads/CUFED/image_importance.json')
     parser.add_argument('--val_dir', type=str, default='./albums')
     parser.add_argument('--num_classes', type=int, default=23)
     parser.add_argument('--model_name', type=str, default='mtresnetaggregate')
@@ -228,7 +305,6 @@ if __name__ == '__main__':
     parser.add_argument('--remove_model_jit', type=int, default=None)
     args = parser.parse_args()
 
-
     val_transform = T.Compose([
         T.Resize((224, 224)),
         T.ToTensor(),
@@ -238,17 +314,13 @@ if __name__ == '__main__':
         ),
 
     ])
-    
 
-        
-    ds = AlbumsDataset(data_path='/vinai/vietlq4/dataset/CUFED/images',album_list = args.album_list,
-                         transforms=val_transform, args=args)
-    
-    
-    dataloader = data.DataLoader(ds, batch_size= 4, num_workers= 4, shuffle=True)
-    for i, (video, label) in enumerate(dataloader):
-        print(video.shape)
-        print(label)
+    ds = CUFEDImportanceDataset(data_path='/home/vietlq4/Downloads/CUFED/images', album_list=args.album_list,
+                                transforms=val_transform, args=args)
+
+    dataloader = data.DataLoader(ds, batch_size=4, num_workers=4, shuffle=True)
+    for i, (im1, im2, score1, score2, label) in enumerate(dataloader):
+
         break
 
     # val_sampler = OrderedSampler(ds, args=args)

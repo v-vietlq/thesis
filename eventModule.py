@@ -45,7 +45,7 @@ class EventModule(LightningModule):
                   1 , 1.679, 1 , 1, 1, 1]).cuda()
         for loss_name in self.train_opt.loss:
             if loss_name == "asymmetric":
-                self.criterion += [(loss_name, AsymmetricLoss(main_opt))]
+                self.criterion += [(loss_name, AsymmetricLossOptimized(gamma_neg= 2, gamma_pos= 0,clip=0.0,disable_torch_grad_focal_loss=False,eps=1e-5))]
             elif loss_name == "focal":
                 self.criterion += [(loss_name, FocalLoss())]
             elif loss_name == 'multilabelsoftmagin':

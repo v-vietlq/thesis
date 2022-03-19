@@ -15,29 +15,30 @@ import random
 from torchvision.datasets import ImageFolder
 
 
-def fast_collate(batch, clip_length=None):
-  im1, im2,score1, score2
-  batch_size = len(targets)
-  dims = (batch[0][0].shape[2], batch[0][0].shape[0], batch[0][0].shape[1])  # HWC to CHW
-  tensor_uint8_CHW = torch.empty((batch_size, *dims), dtype=torch.uint8)
-  for i in range(batch_size):
-    tensor_uint8_CHW[i] = torch.from_numpy(batch[i][0]).permute(2, 0, 1)  # # HWC to CHW
-    # tensor_uint8_CHW[i] = batch[i][0].permute(2, 0, 1)  # # HWC to CHW # (Added)
-  targets = targets.view(batch_size // clip_length, clip_length, -1)[:, 0]
-  return tensor_uint8_CHW.float(), targets  # , extra_data
+# def fast_collate(batch, clip_length=None):
+#   im1, im2,score1, score2
+#   batch_size = len(targets)
+#   dims = (batch[0][0].shape[2], batch[0][0].shape[0], batch[0][0].shape[1])  # HWC to CHW
+#   tensor_uint8_CHW = torch.empty((batch_size, *dims), dtype=torch.uint8)
+#   for i in range(batch_size):
+#     tensor_uint8_CHW[i] = torch.from_numpy(batch[i][0]).permute(2, 0, 1)  # # HWC to CHW
+#     # tensor_uint8_CHW[i] = batch[i][0].permute(2, 0, 1)  # # HWC to CHW # (Added)
+#   targets = targets.view(batch_size // clip_length, clip_length, -1)[:, 0]
+#   return tensor_uint8_CHW.float(), targets  # , extra_data
 
-def fast_collate_1(batch,clip_length):
+def fast_collate_1(batch, clip_length):
 
     imgs = [img[0] for img in batch]
     targets = torch.tensor([target[4] for target in batch], dtype=torch.int64)
     batch_size = len(targets)
     w = imgs[0].shape[1]
     h = imgs[0].shape[2]
-    tensor = torch.zeros( (len(imgs), 3, h, w), dtype=torch.float)
+    tensor = torch.zeros((len(imgs), 3, h, w), dtype=torch.float)
     for i, img in enumerate(imgs):
         tensor[i] += img
     targets = targets.view(batch_size // clip_length, clip_length, -1)[:, 0]
     return tensor, targets
+
 
 def default_loader(path):
     img = Image.open(path)
@@ -327,17 +328,16 @@ if __name__ == '__main__':
                                 transforms=val_transform, args=args)
 
     val_sampler = OrderSampler(ds, args=args)
-    collate_fn = lambda b: fast_collate_1(b, args.album_clip_length)
+    def collate_fn(b): return fast_collate_1(b, args.album_clip_length)
 
-    dataloader = data.DataLoader(ds,batch_size =128, num_workers=4,sampler = val_sampler, shuffle=False, collate_fn=collate_fn)
-    for i,(im1, label) in enumerate(dataloader):
-      if (i+1) % 3 == 0:
-        # print(label[64:96])
-        # print(label[96:128])
-        print(label)
-        break
-
-   
+    dataloader = data.DataLoader(ds, batch_size=128, num_workers=4,
+                                 sampler=val_sampler, shuffle=False, collate_fn=collate_fn)
+    for i, (im1, label) in enumerate(dataloader):
+        if (i+1) % 3 == 0:
+            # print(label[64:96])
+            # print(label[96:128])
+            print(label)
+            break
 
     # valid_dl_pytorch = torch.utils.data.DataLoader(
     #     ds, batch_size=args.batch_size, shuffle=False, pin_memory=True, sampler = val_sampler,

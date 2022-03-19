@@ -75,7 +75,7 @@ if __name__ == '__main__':
     # Create Trainer
     trainer = pl.Trainer(gpus=train_opt.gpus,
                          resume_from_checkpoint=train_opt.resume,
-                         auto_lr_find= True,
+                         auto_lr_find=True,
                          accelerator=train_opt.accelerator,
                          logger=logger,
                          max_epochs=train_opt.max_epoch,
@@ -107,6 +107,7 @@ if __name__ == '__main__':
 
     ])
 
+<<<<<<< HEAD
     train_dataset = CUFEDImportanceDataset(data_path='../CUFED_split/images/train', album_list=train_opt.train_list,
                                 transforms=train_transform, args=train_opt)
 
@@ -116,10 +117,23 @@ if __name__ == '__main__':
     train_loader = data.DataLoader(train_dataset,batch_size =128, num_workers=4,sampler = train_sampler, shuffle=False, drop_last = True, collate_fn=collate_fn)
 
     val_dataset = AlbumsDataset(data_path='../CUFED_split/images/test', album_list=train_opt.val_list,
+=======
+    train_dataset = CUFEDImportanceDataset(data_path='../CUFED/images', album_list=train_opt.train_list,
+                                           transforms=val_transform, args=train_opt)
+
+    train_sampler = OrderSampler(train_dataset, args=train_opt)
+    def collate_fn(b): return fast_collate_1(b, train_opt.album_clip_length)
+
+    train_loader = data.DataLoader(train_dataset, batch_size=128, num_workers=4,
+                                   sampler=train_sampler, shuffle=False, drop_last=True, collate_fn=collate_fn)
+
+    val_dataset = AlbumsDataset(data_path='../CUFED/images', album_list=train_opt.val_list,
+>>>>>>> d9e32a0027f9515ec0c06f9ec3e15e657072dc93
                                 transforms=val_transform, args=train_opt)
 
     # val_sampler = OrderSampler(val_dataset, args=train_opt)
 
+<<<<<<< HEAD
     val_loader = data.DataLoader(val_dataset,batch_size =32, num_workers=4, shuffle=False)
 
     # train_dataset = AlbumsDataset(
@@ -134,6 +148,23 @@ if __name__ == '__main__':
     # val_dataset = AlbumsDataset(
     #     train_opt.train_root, train_opt.val_list, transforms=val_transform, args=train_opt)
     
+=======
+    val_loader = data.DataLoader(
+        val_dataset, batch_size=32, num_workers=4, shuffle=False)
+
+    # train_dataset = AlbumsDataset(
+    #     train_opt.train_root, train_opt.train_list, transforms=train_transform, args=train_opt)
+
+    # # train_sampler = OrderedSampler(train_dataset, args=train_opt)
+
+    # train_loader = torch.utils.data.DataLoader(
+    #     train_dataset, batch_size=train_opt.batch_size, shuffle=True, pin_memory=True,
+    #     num_workers=train_opt.num_threads, drop_last=False)
+
+    # val_dataset = AlbumsDataset(
+    #     train_opt.train_root, train_opt.val_list, transforms=val_transform, args=train_opt)
+
+>>>>>>> d9e32a0027f9515ec0c06f9ec3e15e657072dc93
     # # val_sampler = OrderedSampler(val_dataset, args=train_opt)
 
     # val_loader = torch.utils.data.DataLoader(

@@ -56,9 +56,9 @@ class EventModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         image, label = batch
-        if self.train_opt.use_transformer:
-            batch_size, time_steps, channels, height, width = image.size()
-            image = image.view(batch_size * time_steps, channels, height, width)
+        # if self.train_opt.use_transformer:
+        #     batch_size, time_steps, channels, height, width = image.size()
+        #     image = image.view(batch_size * time_steps, channels, height, width)
         outputs = self(image)
         if len(self.output_weights) == 1:
             outputs = [outputs]

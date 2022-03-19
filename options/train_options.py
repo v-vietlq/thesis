@@ -11,9 +11,9 @@ class TrainOptions(BaseOptions):
         
         parser.add_argument('--album_clip_length', type=int, help='length of album', default= 32)
         parser.add_argument('--event_type_pth', type=str,
-                        default='../CUFED/event_type.json')
+                        default='../CUFED_split/event_type.json')
         parser.add_argument('--image_importance_pth', type=str,
-                        default='../CUFED/image_importance.json')
+                        default='../CUFED_split/image_importance.json')
         parser.add_argument('--threshold', type=float, default=0.85)
         
         ## Augmentations

@@ -15,21 +15,29 @@ import random
 from torchvision.datasets import ImageFolder
 
 
-def fast_collate(batch, clip_length):
-    targets = torch.tensor([b[1] for b in batch])
-    # scores = torch.tensor([b[2] for b in batch])
+def fast_collate(batch, clip_length=None):
+  im1, im2,score1, score2
+  batch_size = len(targets)
+  dims = (batch[0][0].shape[2], batch[0][0].shape[0], batch[0][0].shape[1])  # HWC to CHW
+  tensor_uint8_CHW = torch.empty((batch_size, *dims), dtype=torch.uint8)
+  for i in range(batch_size):
+    tensor_uint8_CHW[i] = torch.from_numpy(batch[i][0]).permute(2, 0, 1)  # # HWC to CHW
+    # tensor_uint8_CHW[i] = batch[i][0].permute(2, 0, 1)  # # HWC to CHW # (Added)
+  targets = targets.view(batch_size // clip_length, clip_length, -1)[:, 0]
+  return tensor_uint8_CHW.float(), targets  # , extra_data
+
+def fast_collate_1(batch,clip_length):
+
+    imgs = [img[0] for img in batch]
+    targets = torch.tensor([target[4] for target in batch], dtype=torch.int64)
     batch_size = len(targets)
-    dims = (batch[0][0].shape[0], batch[0][0].shape[1],
-            batch[0][0].shape[2])  # HWC to CHW
-    tensor_uint8_CHW = torch.empty((batch_size, *dims), dtype=torch.uint8)
-    tensor_score = torch.empty((batch_size, 1), dtype=torch.float32)
-
-    for i in range(batch_size):
-        tensor_uint8_CHW[i] = batch[i][0]
-        tensor_score[i] = torch.from_numpy(np.array(batch[i][2]))
+    w = imgs[0].shape[1]
+    h = imgs[0].shape[2]
+    tensor = torch.zeros( (len(imgs), 3, h, w), dtype=torch.float)
+    for i, img in enumerate(imgs):
+        tensor[i] += img
     targets = targets.view(batch_size // clip_length, clip_length, -1)[:, 0]
-    return tensor_uint8_CHW.float(), targets, tensor_score  # , extra_data
-
+    return tensor, targets
 
 def default_loader(path):
     img = Image.open(path)
@@ -91,7 +99,7 @@ def get_impaths_from_dir(dirpath, album_list, args=None):
     for lbl in labels:
         labels_onehot = num_cls * [0]
         for lb in lbl:
-            labels_onehot[classes_to_idx[lb]] = 1
+            labels_onehot[classes_to_idx[lb]] = 1.0
         lbls.append(labels_onehot)
 
     return impaths, lbls, normailize_scores
@@ -254,11 +262,11 @@ class CUFEDImportanceDataset(data.Dataset):
 
         im1 = Image.open(img0_tuple[0]).convert('RGB')
         im2 = Image.open(img1_tuple[0]).convert('RGB')
-        print('--------')
-        print(img0_tuple[0], score_img1)
-        print(img1_tuple[0], score_img2)
-        print(labels_onehot)
-        print('--------\n')
+        # print('--------')
+        # print(img0_tuple[0], score_img1)
+        # print(img1_tuple[0], score_img2)
+        # print(labels_onehot)
+        # print('--------\n')
         if self.transforms is not None:
             im1 = self.transforms(im1)
             im2 = self.transforms(im2)
@@ -283,16 +291,16 @@ if __name__ == '__main__':
                         default='filenames/test.txt')
     # /Graduation') # /0_92024390@N00')
     parser.add_argument('--event_type_pth', type=str,
-                        default='/home/vietlq4/Downloads/CUFED/event_type.json')
+                        default='../CUFED_split/event_type.json')
     parser.add_argument('--image_importance_pth', type=str,
-                        default='/home/vietlq4/Downloads/CUFED/image_importance.json')
+                        default='../CUFED_split/image_importance.json')
     parser.add_argument('--val_dir', type=str, default='./albums')
     parser.add_argument('--num_classes', type=int, default=23)
     parser.add_argument('--model_name', type=str, default='mtresnetaggregate')
     parser.add_argument('--transformers_pos', type=int, default=1)
     parser.add_argument('--input_size', type=int, default=224)
     parser.add_argument('--transform_type', type=str, default='squish')
-    parser.add_argument('--album_sample', type=str, default='rand_permute')
+    parser.add_argument('--album_sample', type=str, default='uniform_ordered')
     parser.add_argument('--dataset_path', type=str, default='./data/ML_CUFED')
     parser.add_argument('--dataset_type', type=str, default='ML_CUFED')
     parser.add_argument('--path_output', type=str, default='./outputs')
@@ -315,15 +323,21 @@ if __name__ == '__main__':
 
     ])
 
-    ds = CUFEDImportanceDataset(data_path='/home/vietlq4/Downloads/CUFED/images', album_list=args.album_list,
+    ds = CUFEDImportanceDataset(data_path='../CUFED/images', album_list=args.album_list,
                                 transforms=val_transform, args=args)
 
-    dataloader = data.DataLoader(ds, batch_size=4, num_workers=4, shuffle=True)
-    for i, (im1, im2, score1, score2, label) in enumerate(dataloader):
+    val_sampler = OrderSampler(ds, args=args)
+    collate_fn = lambda b: fast_collate_1(b, args.album_clip_length)
 
+    dataloader = data.DataLoader(ds,batch_size =128, num_workers=4,sampler = val_sampler, shuffle=False, collate_fn=collate_fn)
+    for i,(im1, label) in enumerate(dataloader):
+      if (i+1) % 3 == 0:
+        # print(label[64:96])
+        # print(label[96:128])
+        print(label)
         break
 
-    # val_sampler = OrderedSampler(ds, args=args)
+   
 
     # valid_dl_pytorch = torch.utils.data.DataLoader(
     #     ds, batch_size=args.batch_size, shuffle=False, pin_memory=True, sampler = val_sampler,

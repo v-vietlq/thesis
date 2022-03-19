@@ -4,7 +4,8 @@ python train.py \
 --backbone resnet101 \
 --num_threads 4 \
 --seed 2021 \
---train_root ../CUFED/images \
+--train_root ../CUFED_split/images/train \
+--val_root ../CUFED_split/images/test \
 --train_list filenames/train_multi.txt \
 --val_list filenames/test.txt \
 --batch_size 3 \

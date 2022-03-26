@@ -2,8 +2,8 @@ import torch
 
 import numpy as np
 
-from dataset import DatasetFromList, fast_collate
-from datasets.samplers import OrderedSampler
+from dataset import *
+from datasets.samplers import *
 from functools import partial
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
@@ -15,6 +15,32 @@ from siameseModule import ImportanceModule
 from torchvision import transforms as T
 from datasets.augmentations.generate_transforms import generate_validation_transform
 from siameseModule import ImportanceModule
+import random
+from PIL import ImageDraw
+from randaugment import RandAugment
+
+
+class CutoutPIL(object):
+    def __init__(self, cutout_factor=0.5):
+        self.cutout_factor = cutout_factor
+
+    def __call__(self, x):
+        img_draw = ImageDraw.Draw(x)
+        h, w = x.size[0], x.size[1]  # HWC
+        h_cutout = int(self.cutout_factor * h + 0.5)
+        w_cutout = int(self.cutout_factor * w + 0.5)
+        y_c = np.random.randint(h)
+        x_c = np.random.randint(w)
+
+        y1 = np.clip(y_c - h_cutout // 2, 0, h)
+        y2 = np.clip(y_c + h_cutout // 2, 0, h)
+        x1 = np.clip(x_c - w_cutout // 2, 0, w)
+        x2 = np.clip(x_c + w_cutout // 2, 0, w)
+        fill_color = (random.randint(0, 255), random.randint(
+            0, 255), random.randint(0, 255))
+        img_draw.rectangle([x1, y1, x2, y2], fill=fill_color)
+
+        return x
 
 
 if __name__ == '__main__':
@@ -71,7 +97,7 @@ if __name__ == '__main__':
 
     # Create Trainer
     trainer = pl.Trainer(gpus=train_opt.gpus,
-                         replace_sampler_ddp = False,
+                         replace_sampler_ddp=False,
                          resume_from_checkpoint=train_opt.resume,
                          accelerator=train_opt.accelerator,
                          logger=logger,
@@ -83,48 +109,39 @@ if __name__ == '__main__':
         # T.RandomRotation(degrees=30.),
         # T.RandomPerspective(distortion_scale=0.4),
         T.Resize((224, 224)),
-        T.RandomHorizontalFlip(p=0.5),
-        T.RandomVerticalFlip(p=0.5),
+        CutoutPIL(cutout_factor=0.5),
+        RandAugment(),
         T.ToTensor(),
-        T.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225)
-        ),
+
 
     ])
 
     val_transform = T.Compose([
         T.Resize((224, 224)),
         T.ToTensor(),
-        T.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225)
-        ),
-
     ])
-    
 
-    train_dataset = DatasetFromList(
+    train_dataset = CUFEDImportanceDataset(
         train_opt.train_root, train_opt.train_list, transform=train_transform, args=train_opt)
-    
-    train_sampler = OrderedSampler(train_dataset, args=train_opt)
-    
+
+    train_sampler = OrderSampler(train_dataset, args=train_opt)
+
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True, sampler = train_sampler,
-        num_workers=train_opt.num_threads, drop_last=False, collate_fn=partial(fast_collate, clip_length=train_opt.album_clip_length))
-    
-    val_dataset = DatasetFromList(
-        train_opt.train_root, train_opt.val_list, transform=val_transform, args=train_opt)
-    
-    val_sampler = OrderedSampler(val_dataset, args=train_opt)
+        train_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True, sampler=train_sampler,
+        num_workers=train_opt.num_threads, drop_last=False, collate_fn=partial(fast_collate_1, clip_length=train_opt.album_clip_length))
+
+    val_dataset = CUFEDImportanceDataset(
+        train_opt.val_root, train_opt.val_list, transform=val_transform, args=train_opt)
+
+    val_sampler = OrderSampler(val_dataset, args=train_opt)
 
     val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True, sampler = val_sampler,
-        num_workers=train_opt.num_threads, drop_last=False, collate_fn=partial(fast_collate, clip_length=train_opt.album_clip_length))
+        val_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True, sampler=val_sampler,
+        num_workers=train_opt.num_threads, drop_last=False, collate_fn=partial(fast_collate_1, clip_length=train_opt.album_clip_length))
 
-    for i, (img, target, score) in enumerate(train_loader):
-        print(target.shape)
-        print(img.shape)
-        print(score.shape)
-        break
+    # for i, (img, target, score) in enumerate(train_loader):
+    #     print(target.shape)
+    #     print(img.shape)
+    #     print(score.shape)
+    #     break
     # trainer.fit(importanceModule, train_loader, val_loader)

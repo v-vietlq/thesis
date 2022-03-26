@@ -211,7 +211,7 @@ class PiecewiseLoss(nn.Module):
 
     def forward(self, output1, output2, label1, label2, event):
         Dg = label1 - label2
-        Dp = (torch.sigmoid(output1) - torch.sigmoid(output2)) @ event
+        Dp = torch.sigmoid(output1 @ event) - torch.sigmoid(output2 @ event)
         Dp = Dp.view(-1, 1)
         # print(Dp.shape)
         # print(event.shape)

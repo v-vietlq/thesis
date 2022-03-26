@@ -14,6 +14,32 @@ from options.train_options import TrainOptions
 from eventModule import EventModule
 from torchvision import transforms as T
 from datasets.augmentations.generate_transforms import generate_validation_transform
+import random
+from PIL import ImageDraw
+from randaugment import RandAugment
+
+
+class CutoutPIL(object):
+    def __init__(self, cutout_factor=0.5):
+        self.cutout_factor = cutout_factor
+
+    def __call__(self, x):
+        img_draw = ImageDraw.Draw(x)
+        h, w = x.size[0], x.size[1]  # HWC
+        h_cutout = int(self.cutout_factor * h + 0.5)
+        w_cutout = int(self.cutout_factor * w + 0.5)
+        y_c = np.random.randint(h)
+        x_c = np.random.randint(w)
+
+        y1 = np.clip(y_c - h_cutout // 2, 0, h)
+        y2 = np.clip(y_c + h_cutout // 2, 0, h)
+        x1 = np.clip(x_c - w_cutout // 2, 0, w)
+        x2 = np.clip(x_c + w_cutout // 2, 0, w)
+        fill_color = (random.randint(0, 255), random.randint(
+            0, 255), random.randint(0, 255))
+        img_draw.rectangle([x1, y1, x2, y2], fill=fill_color)
+
+        return x
 
 
 if __name__ == '__main__':
@@ -83,12 +109,14 @@ if __name__ == '__main__':
                          callbacks=[early_stopping_callback, checkpoint_callback, lr_monitor])
 
     train_transform = T.Compose([
-        T.RandomResizedCrop((224, 224)),
-        T.RandomRotation(degrees=30.),
-        T.RandomPerspective(distortion_scale=0.4),
+        # T.RandomResizedCrop((224, 224)),
+        # T.RandomRotation(degrees=30.),
+        # T.RandomPerspective(distortion_scale=0.4),
         T.Resize((224, 224)),
-        T.RandomHorizontalFlip(p=0.5),
-        T.RandomVerticalFlip(p=0.5),
+        # T.RandomHorizontalFlip(p=0.5),
+        # T.RandomVerticalFlip(p=0.5),
+        CutoutPIL(cutout_factor=0.5),
+        RandAugment(),
         T.ToTensor(),
         # T.Normalize(
         #     mean=(0.485, 0.456, 0.406),
@@ -108,32 +136,34 @@ if __name__ == '__main__':
     ])
 
     train_dataset = CUFEDImportanceDataset(data_path='../CUFED_split/images/train', album_list=train_opt.train_list,
-                                transforms=train_transform, args=train_opt)
+                                           transforms=train_transform, args=train_opt)
 
     train_sampler = OrderSampler(train_dataset, args=train_opt)
-    collate_fn = lambda b: fast_collate_1(b, train_opt.album_clip_length)
+    def collate_fn(b): return fast_collate_1(b, train_opt.album_clip_length)
 
-    train_loader = data.DataLoader(train_dataset,batch_size =128, num_workers=4,sampler = train_sampler, shuffle=False, drop_last = True, collate_fn=collate_fn)
+    train_loader = data.DataLoader(train_dataset, batch_size=128, num_workers=4,
+                                   sampler=train_sampler, shuffle=False, drop_last=True, collate_fn=collate_fn)
 
     val_dataset = AlbumsDataset(data_path='../CUFED_split/images/test', album_list=train_opt.val_list,
                                 transforms=val_transform, args=train_opt)
 
     # val_sampler = OrderSampler(val_dataset, args=train_opt)
 
-    val_loader = data.DataLoader(val_dataset,batch_size =32, num_workers=4, shuffle=False)
+    val_loader = data.DataLoader(
+        val_dataset, batch_size=32, num_workers=4, shuffle=False)
 
     # train_dataset = AlbumsDataset(
     #     train_opt.train_root, train_opt.train_list, transforms=train_transform, args=train_opt)
-    
+
     # # train_sampler = OrderedSampler(train_dataset, args=train_opt)
-    
+
     # train_loader = torch.utils.data.DataLoader(
     #     train_dataset, batch_size=train_opt.batch_size, shuffle=True, pin_memory=True,
     #     num_workers=train_opt.num_threads, drop_last=False)
-    
+
     # val_dataset = AlbumsDataset(
     #     train_opt.train_root, train_opt.val_list, transforms=val_transform, args=train_opt)
-    
+
     # # val_sampler = OrderedSampler(val_dataset, args=train_opt)
 
     # val_loader = torch.utils.data.DataLoader(

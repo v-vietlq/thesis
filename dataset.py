@@ -31,19 +31,19 @@ def fast_collate_1(batch, clip_length):
     imgs = [img[0] for img in batch]
     imgs, imgs1, scores, scores1 = [], [], [], []
     for img in batch:
-      imgs.append(img[0])
-      imgs1.append(img[1])
-      scores.append(img[2])
-      scores1.append(img[3])
-    
+        imgs.append(img[0])
+        imgs1.append(img[1])
+        scores.append(img[2])
+        scores1.append(img[3])
+
     targets = torch.tensor([target[4] for target in batch], dtype=torch.int64)
     batch_size = len(targets)
     w = imgs[0].shape[1]
     h = imgs[0].shape[2]
     tensor_0 = torch.zeros((len(imgs), 3, h, w), dtype=torch.float)
     tensor_1 = torch.zeros((len(imgs1), 3, h, w), dtype=torch.float)
-    score_0 = torch.zeros((len(scores), 1), dtype= torch.float)
-    score_1 = torch.zeros((len(scores1), 1), dtype= torch.float)
+    score_0 = torch.zeros((len(scores), 1), dtype=torch.float)
+    score_1 = torch.zeros((len(scores1), 1), dtype=torch.float)
     for i, img in enumerate(imgs):
         tensor_0[i] += img
     for i, img in enumerate(imgs1):
@@ -279,11 +279,11 @@ class CUFEDImportanceDataset(data.Dataset):
 
         im1 = Image.open(img0_tuple[0]).convert('RGB')
         im2 = Image.open(img1_tuple[0]).convert('RGB')
-        print('--------')
-        print(img0_tuple[0], score_img1)
-        print(img1_tuple[0], score_img2)
-        print(labels_onehot)
-        print('--------\n')
+        # print('--------')
+        # print(img0_tuple[0], score_img1)
+        # print(img1_tuple[0], score_img2)
+        # print(labels_onehot)
+        # print('--------\n')
         if self.transforms is not None:
             im1 = self.transforms(im1)
             im2 = self.transforms(im2)

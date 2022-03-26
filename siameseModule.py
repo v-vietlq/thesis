@@ -25,10 +25,8 @@ class ImportanceModule(LightningModule):
         return self.net(x,y)
     
     def training_step(self, batch, batch_idx):
-        img ,event,score = batch
-        img1, img2 = torch.chunk(img,2,dim=0)
-        score1 ,score2 = torch.chunk(score,2, dim=0)
-        
+        img1, img2, score1, score2 ,event = batch
+                
         out1, out2 = self(img1, img2)
         total_loss = 0
         loss = self.criterion(out1, out2, score1, score2, event)
@@ -40,11 +38,9 @@ class ImportanceModule(LightningModule):
         return total_loss
         
     def validation_step(self, batch, batch_idx):
-        img ,event,score = batch
-        img1, img2 = torch.chunk(img,2, dim=0)
-        score1 ,score2 = torch.chunk(score, 2, dim=0)
-        
-        out1, out2 = self(img1, img2)
+        img1, img2, score1, score2 ,event = batch
+        with torch.no_grad():
+            out1, out2 = self(img1, img2)
         
         loss = self.criterion(out1, out2, score1, score2, event)
         

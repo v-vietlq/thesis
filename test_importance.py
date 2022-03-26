@@ -145,20 +145,19 @@ def main(classes_list):
     net.eval()
     net = load_model(net, args.model_path)
 
-    mAP = MAP(net, args.album_list, 5, args)
+    mAP = MAP(net, args.album_list, 20, args)
     print(mAP)
 
 
 def AP_Per_Album(net, album_name, t, args):
     tensor_batch, target, files = get_album(args, album_name, t)
-
-    output = torch.squeeze(torch.sigmoid(net.forward_once(tensor_batch)))
+    with torch.no_grad():
+        output = torch.squeeze(torch.sigmoid(net.forward_once(tensor_batch)))
 
     np_output = output.cpu().detach().numpy()
 
     idx_sort = np.argsort(-np_output)
 
-    scores = np.sort(np_output)[::-1][:int(len(files)*t / 100) + 1]
     idx_th = idx_sort[:int(len(files)*t / 100) + 1]
 
     pred = files[idx_th]
@@ -171,6 +170,7 @@ def MAP(net, album_list, t, args):
     albums = np.loadtxt(album_list, dtype='str', delimiter='\n')
     for album in albums:
         ap_album = AP_Per_Album(net, album, t, args)
+        print(ap_album)
         result.append(ap_album)
     return np.mean(result)
 

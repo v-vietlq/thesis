@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from torch.nn.modules.activation import Sigmoid
 from torchvision import models
 
 
@@ -14,7 +13,7 @@ class SiameseNetwork(nn.Module):
             nn.Linear(2048, 500),
             nn.ReLU(inplace=True),
             nn.Dropout2d(p=0.5),
-            nn.Linear(500, 23),
+            nn.Linear(500, 1),
         )
 
     def forward_once(self, x):

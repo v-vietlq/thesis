@@ -13,11 +13,11 @@ from utils.loss import *
 class ImportanceModule(LightningModule):
     def __init__(self, args):
         super(ImportanceModule, self).__init__()
-        self.args = args 
+        self.train_opt = args 
         
         self.net =  SiameseNetwork(backbone='alexnet')
         
-        self.criterion = PiecewiseLoss()
+        self.criterion = nn.MSELoss()
         
         self.save_hyperparameters()
         
@@ -28,8 +28,10 @@ class ImportanceModule(LightningModule):
         img1, img2, score1, score2 ,event = batch
                 
         out1, out2 = self(img1, img2)
+        out1 = torch.sigmoid(out1)
+        out2 = torch.sigmoid(out2)
         total_loss = 0
-        loss = self.criterion(out1, out2, score1, score2, event)
+        loss = self.criterion(out1,score1) + self.criterion(out2, score2)
         
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         
@@ -41,8 +43,10 @@ class ImportanceModule(LightningModule):
         img1, img2, score1, score2 ,event = batch
         with torch.no_grad():
             out1, out2 = self(img1, img2)
+            out1 = torch.sigmoid(out1)
+            out2 = torch.sigmoid(out2)
         
-        loss = self.criterion(out1, out2, score1, score2, event)
+        loss = self.criterion(out1,score1) + self.criterion(out2, score2)
         
         return loss
     
@@ -54,46 +58,46 @@ class ImportanceModule(LightningModule):
         self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
         
     def configure_optimizers(self):
-    
+
         # Create optimizer
         self.optimizer = None
-        if self.args.optimizer == "sgd":
+        if self.train_opt.optimizer == "sgd":
             self.optimizer = torch.optim.SGD(
                 self.net.parameters(),
-                lr=self.args.lr,
-                momentum=self.args.momentum,
-                weight_decay=self.args.weight_decay,
+                lr=self.atrain_optrgs.lr,
+                momentum=self.train_opt.momentum,
+                weight_decay=self.train_opt.weight_decay,
             )
-        elif self.args.optimizer == "adam":
+        elif self.train_opt.optimizer == "adam":
             self.optimizer = torch.optim.Adam(
                 self.net.parameters(),
-                lr=self.args.lr,
-                weight_decay=self.args.weight_decay,
+                lr=self.train_opt.lr,
+                weight_decay=self.train_opt.weight_decay,
             )
-        elif self.args.optimizer == 'adamw':
+        elif self.train_opt.optimizer == 'adamw':
             self.optimizer = torch.optim.AdamW(
-                self.net.parameters(), lr=self.args.learning_rate)
+                self.net.parameters(), lr=self.train_opt.lr)
 
         # Create learning rate scheduler
         self.scheduler = None
-        if self.args.lr_policy == "exp":
+        if self.train_opt.lr_policy == "exp":
             self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
-                self.optimizer, gamma=self.args.lr_gamma
+                self.optimizer, gamma=self.train_opt.lr_gamma
             )
-        elif self.args.lr_policy == "step":
+        elif self.train_opt.lr_policy == "step":
             self.scheduler = torch.optim.lr_scheduler.StepLR(
-                self.optimizer, step_size=self.args.lr_step, gamma=self.args.lr_gamma
+                self.optimizer, step_size=self.train_opt.lr_step, gamma=self.train_opt.lr_gamma
             )
-        elif self.args.lr_policy == "multi_step":
+        elif self.train_opt.lr_policy == "multi_step":
             self.scheduler = torch.optim.lr_scheduler.MultiStepLR(
-                self.optimizer, milestones=self.args.lr_milestones, gamma=self.args.lr_gamma
+                self.optimizer, milestones=self.train_opt.lr_milestones, gamma=self.train_opt.lr_gamma
             )
-        elif self.args.lr_policy == 'cosine':
+        elif self.train_opt.lr_policy == 'cosine':
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
                 self.optimizer, self.trainer.max_epochs, 0)
-        elif self.args.lr_policy =='onecycle':
-            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=self.args.lr, steps_per_epoch=len(self.train_dataloader()), epochs=self.args.max_epoch,
-                                        pct_start=0.2)
+        elif self.train_opt.lr_policy == 'onecycle':
+            self.scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=self.train_opt.lr, steps_per_epoch=len(self.trainer._data_connector._train_dataloader_source.dataloader()), epochs=self.train_opt.max_epoch,
+                                                                 pct_start=0.2)
         return [self.optimizer], [{"scheduler": self.scheduler, "name": "lr"}]
 
         

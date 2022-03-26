@@ -1,34 +1,25 @@
 import torch
 import torch.nn as nn
 from torch.nn.modules.activation import Sigmoid
-import torchvision
-from models.backbone.alexnet import alexnet
+from torchvision import models
 
 
 class SiameseNetwork(nn.Module):
-    def __init__(self, backbone='alexnet'):
+    def __init__(self, backbone='resnet101'):
         super(SiameseNetwork, self).__init__()
-        self.backbone = alexnet(pretrained=True)
-        self.features = self.backbone.features
-        self.avgpool = self.backbone.avgpool
-        self.classifier = self.backbone.classifier[:-2]
+        self.backbone = models.resnet101(pretrained=True)
+        modules = list(self.backbone.children())[:-1]
+        self.features = nn.Sequential(*modules)
         self.fc1 = nn.Sequential(
-            nn.Linear(4096, 2048),
-            nn.ReLU(inplace=True),
-            nn.Linear(2048, 2048),
-            nn.ReLU(inplace=True),
             nn.Linear(2048, 500),
             nn.ReLU(inplace=True),
-            nn.Linear(500, 500),
-            nn.ReLU(inplace=True),
+            nn.Dropout2d(p=0.5),
             nn.Linear(500, 23),
         )
 
     def forward_once(self, x):
         x = self.features(x)
-        x = self.avgpool(x)
-        x = torch.flatten(x, 1)
-        x = self.classifier(x)
+        x = x.reshape(x.size(0), -1)
         x = self.fc1(x)
         return x
 

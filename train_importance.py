@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 
-from options import TrainOptions, train_options
+from options.train_options import TrainOptions
 from siameseModule import ImportanceModule
 from torchvision import transforms as T
 from datasets.augmentations.generate_transforms import generate_validation_transform
@@ -122,26 +122,26 @@ if __name__ == '__main__':
     ])
 
     train_dataset = CUFEDImportanceDataset(
-        train_opt.train_root, train_opt.train_list, transform=train_transform, args=train_opt)
+        train_opt.train_root, train_opt.train_list, transforms=train_transform, args=train_opt)
 
     train_sampler = OrderSampler(train_dataset, args=train_opt)
 
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True, sampler=train_sampler,
-        num_workers=train_opt.num_threads, drop_last=False, collate_fn=partial(fast_collate_1, clip_length=train_opt.album_clip_length))
+        train_dataset, batch_size=train_opt.batch_size, shuffle=False, sampler=train_sampler,
+        num_workers=train_opt.num_threads, drop_last=True, collate_fn=partial(fast_collate_1, clip_length=train_opt.album_clip_length))
 
     val_dataset = CUFEDImportanceDataset(
-        train_opt.val_root, train_opt.val_list, transform=val_transform, args=train_opt)
+        train_opt.val_root, train_opt.val_list, transforms=val_transform, args=train_opt)
 
     val_sampler = OrderSampler(val_dataset, args=train_opt)
 
     val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=train_opt.batch_size, shuffle=False, pin_memory=True, sampler=val_sampler,
-        num_workers=train_opt.num_threads, drop_last=False, collate_fn=partial(fast_collate_1, clip_length=train_opt.album_clip_length))
+        val_dataset, batch_size=train_opt.batch_size, shuffle=False, sampler=val_sampler,
+        num_workers=train_opt.num_threads, drop_last=True, collate_fn=partial(fast_collate_1, clip_length=train_opt.album_clip_length))
 
     # for i, (img, target, score) in enumerate(train_loader):
     #     print(target.shape)
     #     print(img.shape)
     #     print(score.shape)
     #     break
-    # trainer.fit(importanceModule, train_loader, val_loader)
+    trainer.fit(importanceModule, train_loader, val_loader)

@@ -170,11 +170,12 @@ def edit_targets_parital_labels(args, targets, targets_weights, xs_neg):
         targets_weights = 1.0
     elif args.partial_loss_mode == 'negative_backprop':
         if targets_weights is None or targets_weights.shape != targets.shape:
-            targets_weights = torch.ones(targets.shape, device=torch.device('cuda'))
+            targets_weights = torch.ones(
+                targets.shape, device=torch.device('cuda'))
         else:
             targets_weights[:] = 1.0
         num_top_confused_classes_to_remove_backprop = args.num_classes_to_remove_negative_backprop * \
-                                                      targets_weights.shape[0]  # 50 per sample
+            targets_weights.shape[0]  # 50 per sample
         negative_backprop_fun_jit(targets, xs_neg, targets_weights,
                                   num_top_confused_classes_to_remove_backprop)
 
@@ -183,7 +184,8 @@ def edit_targets_parital_labels(args, targets, targets_weights, xs_neg):
 
     elif args.partial_loss_mode == 'real_partial':
         # remove all unsure targets (targets_weights=0)
-        targets_weights = torch.ones(targets.shape, device=torch.device('cuda'))
+        targets_weights = torch.ones(
+            targets.shape, device=torch.device('cuda'))
         targets_weights[targets == -1] = 0
 
     return targets, targets_weights, xs_neg
@@ -206,15 +208,15 @@ class PiecewiseLoss(nn.Module):
         super(PiecewiseLoss, self).__init__()
         self.ms = torch.tensor(ms)
         self.md = torch.tensor(md)
-        #  -2 ->2 0, 1 
-        # B x 23 
-        # 0.056
-        #  
-        
 
     def forward(self, output1, output2, label1, label2, event):
         Dg = label1 - label2
-        Dp = output1 - output2
+        Dp = (torch.sigmoid(output1) - torch.sigmoid(output2)) @ event
+        Dp = Dp.view(-1, 1)
+        # print(Dp.shape)
+        # print(event.shape)
+        # print(Dp)
+        # print(Dp @ event)
         # output1 *= event
         # output2 *= event
         # output1[output1 !=0]
@@ -223,17 +225,19 @@ class PiecewiseLoss(nn.Module):
         mask_1 = Dg < self.ms
         mask_2 = (Dg >= self.ms) & (Dg <= self.md)
         mask_3 = Dg > self.md
-        
+
         # if Dg < self.ms:
-        loss += (torch.pow(torch.clamp(torch.abs(Dp[mask_1])-self.ms, min=0.0), 2)).sum() / 2
+        loss += (torch.pow(torch.clamp(
+            torch.abs(Dp[mask_1])-self.ms, min=0.0), 2)).sum() / 2
 
         # elif Dg >= self.ms and Dg <= self.md:
         loss += ((torch.pow(torch.clamp(self.ms-Dp[mask_2], min=0.0), 2) +
-                          torch.pow(torch.clamp(Dp[mask_2]-self.md, min=0.0), 2))).sum() / 2
+                  torch.pow(torch.clamp(Dp[mask_2]-self.md, min=0.0), 2))).sum() / 2
         # elif Dg > self.md:
-    
-        loss += (torch.pow(torch.clamp(self.md - Dp[mask_3], min=0.0), 2)).sum() / 2
-        
+
+        loss += (torch.pow(torch.clamp(self.md -
+                 Dp[mask_3], min=0.0), 2)).sum() / 2
+
         return loss
 
 
@@ -302,7 +306,8 @@ class AsymmetricLossOptimized(nn.Module):
 
         # Basic CE calculation
         self.loss = self.targets * torch.log(self.xs_pos.clamp(min=self.eps))
-        self.loss.add_(self.anti_targets * torch.log(self.xs_neg.clamp(min=self.eps)))
+        self.loss.add_(self.anti_targets *
+                       torch.log(self.xs_neg.clamp(min=self.eps)))
 
         # Asymmetric Focusing
         if self.gamma_neg > 0 or self.gamma_pos > 0:
@@ -313,7 +318,7 @@ class AsymmetricLossOptimized(nn.Module):
                     self.xs_pos = self.xs_pos * self.targets
                     self.xs_neg = self.xs_neg * self.anti_targets
                     self.asymmetric_w = torch.pow(1 - self.xs_pos - self.xs_neg,
-                                                self.gamma_pos * self.targets + self.gamma_neg * self.anti_targets)
+                                                  self.gamma_pos * self.targets + self.gamma_neg * self.anti_targets)
                     # if self.disable_torch_grad_focal_loss:
                     #     torch._C.set_grad_enabled(True)
                 self.loss *= self.asymmetric_w
@@ -321,8 +326,8 @@ class AsymmetricLossOptimized(nn.Module):
                 self.xs_pos = self.xs_pos * self.targets
                 self.xs_neg = self.xs_neg * self.anti_targets
                 self.asymmetric_w = torch.pow(1 - self.xs_pos - self.xs_neg,
-                                            self.gamma_pos * self.targets + self.gamma_neg * self.anti_targets)   
-                self.loss *= self.asymmetric_w         
+                                              self.gamma_pos * self.targets + self.gamma_neg * self.anti_targets)
+                self.loss *= self.asymmetric_w
         _loss = - self.loss.sum() / x.size(0)
         _loss = _loss / y.size(1) * 1000
 

@@ -13,7 +13,6 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from options.train_options import TrainOptions
 from eventModule import EventModule
 from torchvision import transforms as T
-from datasets.augmentations.generate_transforms import generate_validation_transform
 import random
 from PIL import ImageDraw
 from randaugment import RandAugment

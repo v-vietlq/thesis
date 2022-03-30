@@ -15,7 +15,7 @@ from utils.utils import AP_partial
 from models.models import MTResnetAggregate
 
 
-class EventModule(LightningModule):
+class MultitaskModule(LightningModule):
 
     def __init__(self, main_opt, val_opt=None):
         super().__init__()

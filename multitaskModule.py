@@ -22,22 +22,16 @@ class EventModule(LightningModule):
         if val_opt is None:  # test phase
             self.test_opt = main_opt
             self.save_hyperparameters(vars(main_opt))
-            if self.test_opt.use_transformer:
-                self.net = MTResnetAggregate(self.test_opt)
-            else:
-                self.net = EventCnnLstm(
-                    main_opt.backbone, main_opt.num_classes)
+
+            self.net = MTResnetAggregate(self.test_opt)
 
             return
 
         self.train_opt = main_opt
         self.save_hyperparameters(vars(main_opt))
         self.val_opt = val_opt
-        if self.train_opt.use_transformer:
-            self.net = MTResnetAggregate(self.train_opt)
-        else:
-            self.net = EventCnnLstm(
-                self.train_opt.backbone, self.train_opt.num_classes)
+
+        self.net = MTResnetAggregate(self.train_opt)
 
         self.output_weights = [1]
         self.criterion = []
@@ -56,23 +50,31 @@ class EventModule(LightningModule):
                 self.criterion += [(loss_name,
                                     nn.MultiLabelSoftMarginLoss(weight=class_weight))]
 
+        self.importance_loss = nn.MSELoss()
+
     def forward(self, x):
         return self.net(x)
 
     def training_step(self, batch, batch_idx):
-        image1, image2, _, _, label = batch
+        image1, image2, score1, score2, label = batch
         # if self.train_opt.use_transformer:
         #     batch_size, time_steps, channels, height, width = image.size()
         #     image = image.view(batch_size * time_steps, channels, height, width)
-        outputs1 = self(image1)
-        outputs2 = self(image2)
+        output_event1, output_imp1 = self(image1)
+        output_event2, output_imp2 = self(image2)
+
+        output_imp1, output_imp2 = torch.sigmoid(
+            output_imp1), torch.sigmoid(output_imp2)
+
         if len(self.output_weights) == 1:
-            outputs1 = [outputs1]
-            outputs2 = [outputs2]
+            outputs1 = [output_event1]
+            outputs2 = [output_event2]
 
         total_loss = 0
+
         for loss_name, criteria in self.criterion:
             loss = 0
+
             for output, weight in zip(outputs1, self.output_weights):
                 # import pdb; pdb.set_trace()
                 loss = loss + weight * criteria(output, label)
@@ -83,6 +85,15 @@ class EventModule(LightningModule):
 
             self.log('loss_'+loss_name, loss, on_step=True,
                      on_epoch=True, prog_bar=True, logger=True)
+
+        importance_loss = self.importance_loss(
+            output_imp1, score1) + self.importance_loss(output_imp2, score2)
+
+        self.log('loss_importance', loss, on_step=True,
+                 on_epoch=True, prog_bar=True, logger=True)
+
+        total_loss += importance_loss
+
         return total_loss
 
     def validation_step(self, batch, batch_idx):

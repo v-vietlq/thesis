@@ -1,4 +1,4 @@
-pytorch_lightning
+pytorch-lightning==1.5.10
 inplace_abn
 fastai2
 timm

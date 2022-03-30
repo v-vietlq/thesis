@@ -2,7 +2,7 @@ import imp
 import torch.nn as nn
 from models.tresnet.tresnet import TResNet
 # from models.utils.registry import register_model
-from .layers.avg_pool import FastAvgPool2d
+from .layers.avg_pool import FastAvgPool2d, FastAdaptiveAvgPool2d
 from models.aggregate.layers.frame_pooling_layer import Aggregate
 from models.aggregate.layers.transformer_aggregate import TAggregate
 import timm
@@ -14,16 +14,27 @@ import timm
 
 class fTResNet(nn.Module):
 
-    def __init__(self,encoder_name ='tresnet_m', num_classes=23, aggregate=None, *args, **kwargs):
+    def __init__(self, encoder_name='tresnet_m', num_classes=23, aggregate=None, *args, **kwargs):
         super(fTResNet, self).__init__(*args, **kwargs)
         self.aggregate = aggregate
-        self.feature_extraction =  timm.create_model(model_name=encoder_name, pretrained=True)
-        self.head = nn.Linear(self.feature_extraction.num_features, num_classes)
-        self.global_pool = FastAvgPool2d(flatten=True)
+        self.feature_extraction = timm.create_model(
+            model_name=encoder_name, pretrained=True)
+        self.head = nn.Linear(
+            self.feature_extraction.num_features, num_classes)
+        self.global_pool = FastAdaptiveAvgPool2d(flatten=True)
+
+        self.fc1 = nn.Sequential(
+            nn.Linear(2048, 500),
+            nn.ReLU(inplace=True),
+            nn.Dropout2d(p=0.5),
+            nn.Linear(500, 1),
+        )
+
     def forward(self, x, filenames=None):
         x = self.feature_extraction.forward_features(x)
         # x = self.body(x)
         self.embeddings = self.global_pool(x)
+        importance = self.fc1(self.embeddings)
         if self.aggregate:
             if isinstance(self.aggregate, TAggregate):
                 self.embeddings, self.attention = self.aggregate(
@@ -37,7 +48,7 @@ class fTResNet(nn.Module):
         #     return logits
         # else:
         #     return (logits, attn_mat)
-        return logits
+        return logits, importance
 
 
 # class fResNet(ResNet):
@@ -65,7 +76,7 @@ def MTResnetAggregate(args):
     else:
         aggregate = Aggregate(args.album_clip_length, args=args)
 
-    model = fTResNet(encoder_name ='tresnet_m', num_classes=23,aggregate=aggregate)
+    model = fTResNet(encoder_name='tresnet_m',
+                     num_classes=23, aggregate=aggregate)
 
     return model
-

@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-
 class FastAvgPool2d(nn.Module):
     def __init__(self, flatten=False):
         super(FastAvgPool2d, self).__init__()
@@ -17,3 +16,10 @@ class FastAvgPool2d(nn.Module):
             return x.view(x.size(0), x.size(1), -1).mean(-1).view(x.size(0), x.size(1), 1, 1)
 
 
+class FastAdaptiveAvgPool2d(nn.Module):
+    def __init__(self, flatten=False):
+        super(FastAdaptiveAvgPool2d, self).__init__()
+        self.flatten = flatten
+
+    def forward(self, x):
+        return x.mean((2, 3), keepdim=not self.flatten)

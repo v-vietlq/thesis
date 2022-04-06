@@ -89,7 +89,7 @@ class MultitaskModule(LightningModule):
         importance_loss = self.importance_loss(
             output_imp1, score1) + self.importance_loss(output_imp2, score2)
 
-        self.log('loss_importance', loss, on_step=True,
+        self.log('loss_importance', importance_loss, on_step=True,
                  on_epoch=True, prog_bar=True, logger=True)
 
         total_loss += importance_loss
@@ -97,13 +97,13 @@ class MultitaskModule(LightningModule):
         return total_loss
 
     def validation_step(self, batch, batch_idx):
-        image, label = batch
-        if self.train_opt.use_transformer:
-            batch_size, time_steps, channels, height, width = image.size()
-            image = image.view(batch_size * time_steps,
-                               channels, height, width)
+        image, _, _, _, label = batch
+        # if self.train_opt.use_transformer:
+        #     batch_size, time_steps, channels, height, width = image.size()
+        #     image = image.view(batch_size * time_steps,
+        #                        channels, height, width)
         with torch.no_grad():
-            outputs = self(image)
+            outputs, _ = self(image)
         pred = torch.sigmoid(outputs)
         pred[(pred >= self.train_opt.threshold)] = 1
         pred[(pred < self.train_opt.threshold)] = 0

@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     # Create SegModule
 
-    multitaskModule = MultitaskModule(train_opt)
+    multitaskModule = MultitaskModule(train_opt, val_opt)
 
     # Load pretrained weight of model (for old version)
     if train_opt.pretrained is not None:

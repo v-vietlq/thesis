@@ -3,6 +3,7 @@ import torch
 import argparse
 import os
 import matplotlib.pyplot as plt
+from torchmetrics import Precision
 import torchvision.utils
 from PIL import Image
 import numpy as np
@@ -146,7 +147,25 @@ def main(classes_list):
     net = load_model(net, args.model_path)
 
     mAP = MAP(net, args.album_list, 20, args)
-    print(mAP)
+    mP = mP(net, args.album_list, 5, args)
+    print('----')
+    print(mP)
+    print('----')
+
+
+def P_Per_Album(net, album_name, t, args):
+    tensor_batch, target, files = get_album(args, album_name, t)
+    with torch.no_grad():
+        output = torch.squeeze(torch.sigmoid(net.forward_once(tensor_batch)))
+
+    np_output = output.cpu().detach().numpy()
+
+    idx_sort = np.argsort(-np_output)
+
+    idx_th = idx_sort[:int(len(files)*t / 100) + 1]
+
+    pred = files[idx_th]
+    return precision_at_k(target, pred)
 
 
 def AP_Per_Album(net, album_name, t, args):
@@ -163,6 +182,16 @@ def AP_Per_Album(net, album_name, t, args):
     pred = files[idx_th]
 
     return avg_precision_at_k(target, pred)
+
+
+def mP(net, album_list, t, args):
+    result = []
+    albums = np.loadtxt(album_list, dtype='str', delimiter='\n')
+    for album in albums:
+        p_album = P_Per_Album(net, album, t, args)
+        print(p_album)
+        result.append(p_album)
+    return np.mean(result)
 
 
 def MAP(net, album_list, t, args):

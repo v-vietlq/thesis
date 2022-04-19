@@ -14,9 +14,9 @@ import timm
 
 class fTResNet(nn.Module):
 
-    def __init__(self, encoder_name='tresnet_m', num_classes=23, aggregate=None, *args, **kwargs):
-        super(fTResNet, self).__init__(*args, **kwargs)
-        self.aggregate = aggregate
+    def __init__(self, encoder_name='tresnet_m', num_classes=23, aggregate=None, args=None):
+        super(fTResNet, self).__init__()
+
         self.feature_extraction = timm.create_model(
             model_name=encoder_name, pretrained=True)
         self.head = nn.Linear(
@@ -24,11 +24,18 @@ class fTResNet(nn.Module):
         self.global_pool = FastAdaptiveAvgPool2d(flatten=True)
 
         self.fc1 = nn.Sequential(
-            nn.Linear(2048, 500),
+            nn.Linear(self.feature_extraction.num_features, 500),
             nn.ReLU(inplace=True),
             nn.Dropout2d(p=0.5),
             nn.Linear(500, 1),
         )
+        if args.use_transformer:
+            aggregate = TAggregate(
+                args.album_clip_length, embed_dim=self.feature_extraction.num_features, args=args)
+        else:
+            aggregate = Aggregate(args.album_clip_length, args=args)
+
+        self.aggregate = aggregate
 
     def forward(self, x, filenames=None):
         x = self.feature_extraction.forward_features(x)
@@ -69,14 +76,9 @@ class fTResNet(nn.Module):
 
 
 def MTResnetAggregate(args):
-    in_chans = 3
     aggregate = None
-    if args.use_transformer:
-        aggregate = TAggregate(args.album_clip_length, args=args)
-    else:
-        aggregate = Aggregate(args.album_clip_length, args=args)
 
-    model = fTResNet(encoder_name='tresnet_m',
-                     num_classes=23, aggregate=aggregate)
+    model = fTResNet(encoder_name=args.backbone,
+                     num_classes=23, aggregate=aggregate, args=args)
 
     return model

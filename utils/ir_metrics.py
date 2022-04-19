@@ -14,7 +14,6 @@ def to_relevance_scores(y_true, y_pred):
     rel_scores = [0] * len(y_pred)
     for i, d in enumerate(y_pred):
         if d in y_true and d not in y_pred[:i]:
-            print(d)
             rel_scores[i] = 1
     return rel_scores
 
@@ -146,5 +145,3 @@ def mean_avg_precision_at_k(y_true, y_pred, k=10):
     """
     return np.mean([avg_precision_at_k(t, p, k)
                     for t, p in zip(y_true, y_pred)])
-
-

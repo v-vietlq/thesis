@@ -191,7 +191,12 @@ class OrderSampler(Sampler):
                                                                          return_counts=True)
 
         # true value without extra samples
-        self.total_size = len(self.dataset)
+
+        self.num_samples = int(math.ceil(len(unique_albums) * self.args.album_clip_length * 1.0 /
+                                         self.num_replicas))
+
+        self.total_size = self.num_samples * self.num_replicas
+
         indices = list(range(self.total_size))
         indices = indices[self.rank:self.total_size:self.num_replicas]
         self.num_samples = len(indices)

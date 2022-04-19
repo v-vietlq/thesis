@@ -56,19 +56,18 @@ class MultitaskModule(LightningModule):
         return self.net(x)
 
     def training_step(self, batch, batch_idx):
-        image1, image2, score1, score2, label = batch
+        image1, score1, label = batch
         # if self.train_opt.use_transformer:
         #     batch_size, time_steps, channels, height, width = image.size()
         #     image = image.view(batch_size * time_steps, channels, height, width)
         output_event1, output_imp1 = self(image1)
-        output_event2, output_imp2 = self(image2)
+        # output_event2, output_imp2 = self(image2)
 
-        output_imp1, output_imp2 = torch.sigmoid(
-            output_imp1), torch.sigmoid(output_imp2)
+        output_imp1 = torch.sigmoid(output_imp1)
 
         if len(self.output_weights) == 1:
             outputs1 = [output_event1]
-            outputs2 = [output_event2]
+            # outputs2 = [output_event2]
 
         total_loss = 0
 
@@ -78,16 +77,16 @@ class MultitaskModule(LightningModule):
             for output, weight in zip(outputs1, self.output_weights):
                 # import pdb; pdb.set_trace()
                 loss = loss + weight * criteria(output, label)
-            for output, weight in zip(outputs2, self.output_weights):
-                # import pdb; pdb.set_trace()
-                loss = loss + weight * criteria(output, label)
+            # for output, weight in zip(outputs2, self.output_weights):
+            #     # import pdb; pdb.set_trace()
+            #     loss = loss + weight * criteria(output, label)
             total_loss = total_loss + loss
 
             self.log('loss_'+loss_name, loss, on_step=True,
                      on_epoch=True, prog_bar=True, logger=True)
 
         importance_loss = self.importance_loss(
-            output_imp1, score1) + self.importance_loss(output_imp2, score2)
+            output_imp1, score1)
 
         self.log('loss_importance', importance_loss, on_step=True,
                  on_epoch=True, prog_bar=True, logger=True)
@@ -97,7 +96,7 @@ class MultitaskModule(LightningModule):
         return total_loss
 
     def validation_step(self, batch, batch_idx):
-        image, _, _, _, label = batch
+        image, _, label = batch
         # if self.train_opt.use_transformer:
         #     batch_size, time_steps, channels, height, width = image.size()
         #     image = image.view(batch_size * time_steps,

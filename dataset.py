@@ -31,28 +31,28 @@ def fast_collate_1(batch, clip_length):
     imgs, imgs1, scores, scores1 = [], [], [], []
     for img in batch:
         imgs.append(img[0])
-        imgs1.append(img[1])
-        scores.append(img[2])
-        scores1.append(img[3])
+        # imgs1.append(img[1])
+        scores.append(img[1])
+        # scores1.append(img[3])
 
-    targets = torch.tensor([target[4] for target in batch], dtype=torch.int64)
+    targets = torch.tensor([target[2] for target in batch], dtype=torch.int64)
     batch_size = len(targets)
     w = imgs[0].shape[1]
     h = imgs[0].shape[2]
     tensor_0 = torch.zeros((len(imgs), 3, h, w), dtype=torch.float)
-    tensor_1 = torch.zeros((len(imgs1), 3, h, w), dtype=torch.float)
+    # tensor_1 = torch.zeros((len(imgs1), 3, h, w), dtype=torch.float)
     score_0 = torch.zeros((len(scores), 1), dtype=torch.float)
-    score_1 = torch.zeros((len(scores1), 1), dtype=torch.float)
+    # score_1 = torch.zeros((len(scores1), 1), dtype=torch.float)
     for i, img in enumerate(imgs):
         tensor_0[i] += img
-    for i, img in enumerate(imgs1):
-        tensor_1[i] += img
+    # for i, img in enumerate(imgs1):
+    #     tensor_1[i] += img
     for i, score in enumerate(scores):
         score_0[i] += score
-    for i, score in enumerate(scores1):
-        score_1[i] += score
+    # for i, score in enumerate(scores1):
+    #     score_1[i] += score
     targets = targets.view(batch_size // clip_length, clip_length, -1)[:, 0]
-    return tensor_0, tensor_1, score_0, score_1, targets
+    return tensor_0, score_0, targets
 
 
 def default_loader(path):
@@ -254,11 +254,11 @@ class CUFEDImportanceDataset(data.Dataset):
 
     def __getitem__(self, index):
         img0_tuple = self.data.imgs[index]
-        while True:
-            # keep looping till the same class image is found
-            img1_tuple = random.choice(self.data.imgs)
-            if img0_tuple[1] == img1_tuple[1]:
-                break
+        # while True:
+        #     # keep looping till the same class image is found
+        #     img1_tuple = random.choice(self.data.imgs)
+        #     if img0_tuple[1] == img1_tuple[1]:
+        #         break
         album = self.index_to_classes[img0_tuple[1]]
 
         # get label
@@ -269,15 +269,15 @@ class CUFEDImportanceDataset(data.Dataset):
 
         # get score
         path1 = '/'.join(img0_tuple[0].rsplit("/", 2)[-2:]).split('.')[0]
-        path2 = '/'.join(img1_tuple[0].rsplit("/", 2)[-2:]).split('.')[0]
+        # path2 = '/'.join(img1_tuple[0].rsplit("/", 2)[-2:]).split('.')[0]
         score_img1 = (self.scores[path1] - self.min_score) / \
             (self.max_score - self.min_score)
-        score_img2 = (self.scores[path2] - self.min_score) / \
-            (self.max_score - self.min_score)
+        # score_img2 = (self.scores[path2] - self.min_score) / \
+        #     (self.max_score - self.min_score)
         # score_img2
 
         im1 = Image.open(img0_tuple[0]).convert('RGB')
-        im2 = Image.open(img1_tuple[0]).convert('RGB')
+        # im2 = Image.open(img1_tuple[0]).convert('RGB')
         # print('--------')
         # print(img0_tuple[0], score_img1)
         # print(img1_tuple[0], score_img2)
@@ -285,12 +285,12 @@ class CUFEDImportanceDataset(data.Dataset):
         # print('--------\n')
         if self.transforms is not None:
             im1 = self.transforms(im1)
-            im2 = self.transforms(im2)
+            # im2 = self.transforms(im2)
 
         # print(class_id)
         # print(self.data.imgs[class_id])
 
-        return im1, im2, score_img1, score_img2, labels_onehot
+        return im1, score_img1, labels_onehot
 
     def __len__(self):
         return len(self.data.imgs)

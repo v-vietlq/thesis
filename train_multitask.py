@@ -11,7 +11,6 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger
 
 from options.train_options import TrainOptions
-from siameseModule import ImportanceModule
 from torchvision import transforms as T
 from multitaskModule import MultitaskModule
 import random

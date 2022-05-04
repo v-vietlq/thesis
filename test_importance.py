@@ -10,6 +10,7 @@ import numpy as np
 import timm
 from models.clsnetwork import EventNetwork, EventCnnLstm
 from models.siamesenetwork import SiameseNetwork
+from models.models import MTResnetAggregate
 import cv2
 import json
 import torchvision.transforms as T
@@ -21,7 +22,7 @@ from utils.ir_metrics import avg_precision_at_k, to_relevance_scores, precision_
 parser = argparse.ArgumentParser(
     description='PETA: Photo album Event recognition using Transformers Attention.')
 parser.add_argument('--model_path', type=str,
-                    default='/content/drive2/checkpoints/importance/version_21/checkpoints/last.ckpt')
+                    default='/content/drive2/checkpoints/event_importance_resnet50/version_3/checkpoints/best-epoch=69-mAP=65.87.ckpt')
 parser.add_argument('--data_path', type=str,
                     default='../CUFED_split/images/test')
 parser.add_argument('--image_importance_pth', type=str,
@@ -33,14 +34,16 @@ parser.add_argument('---album_list', type=str,
 parser.add_argument('--val_dir', type=str, default='./albums')
 parser.add_argument('--num_classes', type=int, default=23)
 parser.add_argument('--model_name', type=str, default='mtresnetaggregate')
-parser.add_argument('--transformers_pos', type=int, default=1)
+parser.add_argument('--transformers_pos', type=int, default=0)
 parser.add_argument('--input_size', type=int, default=224)
 parser.add_argument('--transform_type', type=str, default='squish')
+parser.add_argument('--backbone', type=str, default='resnet50')
 parser.add_argument('--album_sample', type=str, default='rand_permute')
 parser.add_argument('--dataset_path', type=str, default='./data/ML_CUFED')
 parser.add_argument('--dataset_type', type=str, default='ML_CUFED')
 parser.add_argument('--path_output', type=str, default='./outputs')
 parser.add_argument('--use_transformer', type=int, default=1)
+parser.add_argument('--infer', type=int, default=1)
 parser.add_argument('--album_clip_length', type=int, default=32)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--num_workers', type=int, default=0)
@@ -142,21 +145,23 @@ def main(classes_list):
     args = parser.parse_args()
     # net = EventNetwork(encoder_name='resnet101', num_classes=args.num_classes).cuda()
     # net.eval()
-    net = SiameseNetwork().cuda()
+    net = MTResnetAggregate(args).cuda()
     net.eval()
     net = load_model(net, args.model_path)
 
-    mAP = MAP(net, args.album_list, 20, args)
-    mP = mP(net, args.album_list, 5, args)
+    mAP = MAP(net, args.album_list, 30, args)
+    mp = mP(net, args.album_list, 30, args)
     print('----')
-    print(mP)
+    print("mAP: ", mAP)
+    print("mP: ", mp)
     print('----')
 
 
 def P_Per_Album(net, album_name, t, args):
     tensor_batch, target, files = get_album(args, album_name, t)
     with torch.no_grad():
-        output = torch.squeeze(torch.sigmoid(net.forward_once(tensor_batch)))
+        _, output = net(tensor_batch)
+        output = torch.squeeze(torch.sigmoid(output))
 
     np_output = output.cpu().detach().numpy()
 
@@ -171,7 +176,8 @@ def P_Per_Album(net, album_name, t, args):
 def AP_Per_Album(net, album_name, t, args):
     tensor_batch, target, files = get_album(args, album_name, t)
     with torch.no_grad():
-        output = torch.squeeze(torch.sigmoid(net.forward_once(tensor_batch)))
+        _, output = net(tensor_batch)
+        output = torch.squeeze(torch.sigmoid(output))
 
     np_output = output.cpu().detach().numpy()
 
@@ -189,7 +195,6 @@ def mP(net, album_list, t, args):
     albums = np.loadtxt(album_list, dtype='str', delimiter='\n')
     for album in albums:
         p_album = P_Per_Album(net, album, t, args)
-        print(p_album)
         result.append(p_album)
     return np.mean(result)
 
@@ -199,7 +204,6 @@ def MAP(net, album_list, t, args):
     albums = np.loadtxt(album_list, dtype='str', delimiter='\n')
     for album in albums:
         ap_album = AP_Per_Album(net, album, t, args)
-        print(ap_album)
         result.append(ap_album)
     return np.mean(result)
 

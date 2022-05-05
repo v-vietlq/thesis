@@ -5,33 +5,41 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.siamesenetwork import *
-from torchmetrics import Accuracy, F1
 from pytorch_lightning.core.lightning import LightningModule
 from utils.loss import *
 
 
 class ImportanceModule(LightningModule):
-    def __init__(self, args):
-        super(ImportanceModule, self).__init__()
-        self.train_opt = args 
+    def __init__(self, main_opt, val_opt=None):
+        super().__init__()
+        if val_opt is None:  # test phase
+            self.test_opt = main_opt
+            self.save_hyperparameters(vars(main_opt))
+
+            self.net = SiameseNetwork(self.test_opt)
+
+            return
+
+        self.train_opt = main_opt
+        self.save_hyperparameters(vars(main_opt))
+        self.val_opt = val_opt
         
-        self.net =  SiameseNetwork(backbone='alexnet')
+        self.net =  SiameseNetwork(encoder_name=self.train_opt.backbone)
         
         self.criterion = nn.MSELoss()
         
         self.save_hyperparameters()
         
-    def forward(self, x,y):
-        return self.net(x,y)
+    def forward(self, x):
+        return self.net(x)
     
     def training_step(self, batch, batch_idx):
-        img1, img2, score1, score2 ,event = batch
+        img1, score1 ,event = batch
                 
-        out1, out2 = self(img1, img2)
+        out1 = self(img1)
         out1 = torch.sigmoid(out1)
-        out2 = torch.sigmoid(out2)
         total_loss = 0
-        loss = self.criterion(out1,score1) + self.criterion(out2, score2)
+        loss = self.criterion(out1,score1)
         
         self.log('train_loss', loss, on_step=False, on_epoch=True, prog_bar=True, logger=True)
         
@@ -40,22 +48,20 @@ class ImportanceModule(LightningModule):
         return total_loss
         
     def validation_step(self, batch, batch_idx):
-        img1, img2, score1, score2 ,event = batch
+        img1, score1 ,event = batch
         with torch.no_grad():
-            out1, out2 = self(img1, img2)
+            out1 = self(img1)
             out1 = torch.sigmoid(out1)
-            out2 = torch.sigmoid(out2)
         
-        loss = self.criterion(out1,score1) + self.criterion(out2, score2)
+        loss = self.criterion(out1,score1)
+
+        self.log('val_loss', loss, on_step=False, on_epoch=True, sync_dist=True)
         
         return loss
     
     def validation_epoch_end(self, outputs):
-        total_loss = 0
-        for output in outputs:
-            total_loss += output
-            
-        self.log('val_loss', total_loss, on_step=False, on_epoch=True, sync_dist=True)
+        pass
+        
         
     def configure_optimizers(self):
 

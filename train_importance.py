@@ -51,9 +51,13 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(train_opt.seed)
     train_opt.phase = 'train'
 
+    val_opt = TrainOptions().parse()
+    val_opt.phase = 'val'
+    val_opt.batch_size = 32
+
     # Create SegModule
 
-    importanceModule = ImportanceModule(train_opt)
+    importanceModule = ImportanceModule(train_opt, val_opt)
 
     # Load pretrained weight of model (for old version)
     if train_opt.pretrained is not None:

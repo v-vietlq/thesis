@@ -1,36 +1,31 @@
 import torch
 import torch.nn as nn
-from torchvision import models
+import timm
+from .layers.avg_pool import FastAvgPool2d, FastAdaptiveAvgPool2d
 
 
 class SiameseNetwork(nn.Module):
-    def __init__(self, backbone='resnet101'):
+    def __init__(self, encoder_name='resnet101'):
         super(SiameseNetwork, self).__init__()
-        self.backbone = models.resnet101(pretrained=True)
-        modules = list(self.backbone.children())[:-1]
-        self.features = nn.Sequential(*modules)
+        self.feature_extraction = timm.create_model(
+            model_name=encoder_name, pretrained=True)
+        self.global_pool = FastAdaptiveAvgPool2d(flatten=True)
         self.fc1 = nn.Sequential(
-            nn.Linear(2048, 500),
+            nn.Linear(self.feature_extraction.num_features, 500),
             nn.ReLU(inplace=True),
             nn.Dropout2d(p=0.5),
             nn.Linear(500, 1),
         )
 
-    def forward_once(self, x):
-        x = self.features(x)
-        x = x.reshape(x.size(0), -1)
+    def forward(self, x):
+        x = self.feature_extraction.forward_features(x)
+        x = self.global_pool(x)
         x = self.fc1(x)
         return x
-
-    def forward(self, input1, input2):
-        output1 = self.forward_once(input1)
-        output2 = self.forward_once(input2)
-        return output1, output2
 
 
 if __name__ == '__main__':
     x = torch.rand(16, 3, 224, 224)
-    y = torch.rand(16, 3, 224, 224)
     m = SiameseNetwork()
-    o = m.forward_once(x)
+    o = m(x)
     print(o.shape)

@@ -4,6 +4,7 @@ import torch
 # from fastai2.layers import trunc_normal_
 from utils.utils import trunc_normal_
 import pickle
+import copy
 
 
 class TransformerEncoderLayerWithWeight(nn.TransformerEncoderLayer):
@@ -22,31 +23,35 @@ class TransformerEncoderLayerWithWeight(nn.TransformerEncoderLayer):
         return src, attn_weight
 
 
-class TransformerEncoderWithWeight(nn.TransformerEncoder):
-    def __init__(self, *args, **kwargs):
-        super(TransformerEncoderWithWeight, self).__init__(*args, **kwargs)
+def _get_clones(module, N):
+    return nn.ModuleList([copy.deepcopy(module) for i in range(N)])
 
-    def forward(self, src, mask=None, src_key_padding_mask=None):
+
+class TransformerEncoderWithWeight(nn.Module):
+    def __init__(self, encoder_layer, num_layers, norm=None):
+        super(TransformerEncoderWithWeight, self).__init__()
+        self.layers = _get_clones(encoder_layer, num_layers)
+        self.num_layers = num_layers
+        self.norm = norm
+
+    def forward(self, src):
         output = src
 
         for mod in self.layers:
-            output, attn_weight = mod(
-                output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
+            output = mod(output)
 
         if self.norm is not None:
             output = self.norm(output)
 
-        return output, attn_weight
+        return output
 
 
-class TAggregate(nn.Module):
-    def __init__(self, clip_length=None, embed_dim=2048, n_layers=6, args=None):
-        super(TAggregate, self).__init__()
+class TAtentionAggregate(nn.Module):
+    def __init__(self, clip_length=None, enc_layer=None, embed_dim=2048, n_layers=6, args=None):
+        super(TAtentionAggregate, self).__init__()
         self.clip_length = clip_length
         drop_rate = 0.
         self.args = args
-        enc_layer = TransformerEncoderLayerWithWeight(
-            d_model=embed_dim, nhead=8)
         self.transformer_enc = TransformerEncoderWithWeight(enc_layer, num_layers=n_layers,
                                                             norm=nn.LayerNorm(
                                                                 embed_dim))
@@ -71,7 +76,7 @@ class TAggregate(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def forward(self, x, filenames=None):
+    def forward(self, x):
         self.clip_length = x.shape[0] if self.args.infer == True else self.clip_length
         nvids = x.shape[0] // self.clip_length
         x = x.view((nvids, self.clip_length, -1))
@@ -83,25 +88,7 @@ class TAggregate(nn.Module):
         # x = self.pos_drop(x)
 
         x.transpose_(1, 0)
-        o, attn_weight = self.transformer_enc(x)
+        o = self.transformer_enc(x)
         o.transpose_(1, 0)
-        # save attn_weight as a pickle file
-        if filenames:
-            for b in range(nvids):
-                # get album name:
-                album_name = filenames[b * self.clip_length].split('/')[-2]
-                # get file names:
-                files = []
-                for fn in range(b * self.clip_length, (b + 1) * self.clip_length):
-                    files.append(os.path.splitext(
-                        os.path.basename(filenames[fn]))[0])
-                if self.args.save_attention:
-                    torch.save(attn_weight[b], os.path.join(
-                        'outputs', album_name + '_attn.pt'))
-                if self.args.save_embeddings:
-                    torch.save(pre_aggregate[b], os.path.join(
-                        'outputs', album_name + '_embeddings4img.pt'))
-                with open(os.path.join('outputs', album_name + '_files.pickle'), 'wb') as handle:
-                    pickle.dump(files, handle)
 
-        return o[:, 0], attn_weight
+        return o[:, 0]

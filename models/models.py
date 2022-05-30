@@ -5,7 +5,12 @@ from models.tresnet.tresnet import TResNet
 from .layers.avg_pool import FastAvgPool2d, FastAdaptiveAvgPool2d
 from models.aggregate.layers.frame_pooling_layer import Aggregate
 from models.aggregate.layers.transformer_aggregate import TAggregate
+from models.aggregate.layers.transformer_agg import TAtentionAggregate
 import timm
+from models.attention.EMSA import EMSA
+from models.attention.ExternalAttention import ExternalAttention
+from models.attention.AFT import AFT_FULL
+
 # from src.models.resnet.resnet import Bottleneck as ResnetBottleneck
 # from models.resnet.resnet import ResNet
 
@@ -29,9 +34,22 @@ class fTResNet(nn.Module):
             nn.Dropout2d(p=0.5),
             nn.Linear(500, 1),
         )
+
         if args.use_transformer:
-            aggregate = TAggregate(
-                args.album_clip_length, embed_dim=self.feature_extraction.num_features, args=args)
+            if args.attention == 'aft':
+                attention = AFT_FULL(
+                    d_model=self.feature_extraction.num_features, n=49)
+                aggregate = TAtentionAggregate(
+                    args.album_clip_length, enc_layer=attention, embed_dim=self.feature_extraction.num_features, args=args)
+            elif args.attention == 'externalattention':
+                attention = ExternalAttention(
+                    d_model=self.feature_extraction.num_features, S=8)
+                aggregate = TAtentionAggregate(
+                    args.album_clip_length, enc_layer=attention, embed_dim=self.feature_extraction.num_features, args=args)
+            else:
+                aggregate = TAggregate(
+                    args.album_clip_length, embed_dim=self.feature_extraction.num_features, args=args)
+
         else:
             aggregate = Aggregate(args.album_clip_length, args=args)
 
@@ -46,6 +64,10 @@ class fTResNet(nn.Module):
             if isinstance(self.aggregate, TAggregate):
                 self.embeddings, self.attention = self.aggregate(
                     self.embeddings, filenames)
+                logits = self.head(self.embeddings)
+            elif isinstance(self.aggregate, TAtentionAggregate):
+                self.embeddings = self.aggregate(
+                    self.embeddings)
                 logits = self.head(self.embeddings)
             else:  # CNN aggregation:
                 logits = self.head(self.embeddings)

@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
     val_opt = TrainOptions().parse()
     val_opt.phase = 'val'
-    val_opt.batch_size = 32
+    val_opt.batch_size = train_opt.album_clip_length
 
     # Create SegModule
 

@@ -38,7 +38,7 @@ class fTResNet(nn.Module):
         if args.use_transformer:
             if args.attention == 'aft':
                 attention = AFT_FULL(
-                    d_model=self.feature_extraction.num_features, n=49)
+                    d_model=self.feature_extraction.num_features, n=args.album_clip_length + 1)
                 aggregate = TAtentionAggregate(
                     args.album_clip_length, enc_layer=attention, embed_dim=self.feature_extraction.num_features, args=args)
             elif args.attention == 'externalattention':

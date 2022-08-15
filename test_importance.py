@@ -29,8 +29,10 @@ parser.add_argument('--image_importance_pth', type=str,
                     default='../CUFED_split/image_importance.json')
 parser.add_argument('--event_type_pth', type=str,
                     default='../CUFED_split/event_type.json')
-parser.add_argument('---album_list', type=str,
+parser.add_argument('--album_list', type=str,
                     default='filenames/test.txt')
+parser.add_argument('--album_name', type=str,
+                    default='1_36030443@N06')
 parser.add_argument('--val_dir', type=str, default='./albums')
 parser.add_argument('--num_classes', type=int, default=23)
 parser.add_argument('--model_name', type=str, default='mtresnetaggregate')
@@ -48,9 +50,11 @@ parser.add_argument('--album_clip_length', type=int, default=32)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--num_workers', type=int, default=0)
 parser.add_argument('--top_k', type=int, default=3)
+parser.add_argument('--t', type=int, default=5)
 parser.add_argument('--threshold', type=float, default=0.5)
 parser.add_argument('--remove_model_jit', type=int, default=None)
-
+parser.add_argument('--attention', type=str,
+                    default='multihead')
 
 test_transform = T.Compose([
     T.Resize((224, 224)),
@@ -91,7 +95,7 @@ def get_album(args, album_name, t):
     files = [file.replace('.jpg', '') for file in files]
     tensor_batch = tensor_batch.permute(0, 3, 1, 2).cuda()   # HWC to CHW
 
-    return tensor_batch, np.array(top_t_labels), np.array(files)
+    return tensor_batch, np.array(top_t_labels), np.array(files), event
 
 
 def plot_image(i, predictions_array, true_label, img, class_names):
@@ -149,16 +153,19 @@ def main(classes_list):
     net.eval()
     net = load_model(net, args.model_path)
 
-    mAP = MAP(net, args.album_list, 30, args)
-    mp = mP(net, args.album_list, 30, args)
-    print('----')
-    print("mAP: ", mAP)
-    print("mP: ", mp)
-    print('----')
+    # mAP = MAP(net, args.album_list, 30, args)
+    # mp = mP(net, args.album_list, 30, args)
+    # print('----')
+    # print("mAP: ", mAP)
+    # print("mP: ", mp)
+    # print('----')
+    montage_target, montage_pred, tags, event = get_result(
+        net, args.album_name, args.t, args, classes_list)
+    display_image(montage_target, montage_pred, tags, event)
 
 
 def P_Per_Album(net, album_name, t, args):
-    tensor_batch, target, files = get_album(args, album_name, t)
+    tensor_batch, target, files, event = get_album(args, album_name, t)
     with torch.no_grad():
         _, output = net(tensor_batch)
         output = torch.squeeze(torch.sigmoid(output))
@@ -174,7 +181,7 @@ def P_Per_Album(net, album_name, t, args):
 
 
 def AP_Per_Album(net, album_name, t, args):
-    tensor_batch, target, files = get_album(args, album_name, t)
+    tensor_batch, target, files, event = get_album(args, album_name, t)
     with torch.no_grad():
         _, output = net(tensor_batch)
         output = torch.squeeze(torch.sigmoid(output))
@@ -208,18 +215,85 @@ def MAP(net, album_list, t, args):
     return np.mean(result)
 
 
-def display_image(im, tags, filename, path_dest):
-
-    if not os.path.exists(path_dest):
-        os.makedirs(path_dest)
-
-    plt.figure()
-    plt.imshow(im)
+def display_image(im1, im2, tags, event):
+    rows = 2
+    columns = 2
+    fig = plt.figure(figsize=(15, 7))
     plt.axis('off')
-    plt.axis('tight')
+    plt.title('event class')
     plt.rcParams["axes.titlesize"] = 16
-    plt.title("Predicted classes: {}".format(tags))
-    plt.savefig(os.path.join(path_dest, filename))
+    plt.title("Predicted classes: {} \n True classes: {}".format(tags, event))
+    # Adds a subplot at the 1st position
+
+    fig.add_subplot(2, 2, 1)
+    # showing image
+    plt.imshow(im1)
+    plt.axis('off')
+    plt.title("target")
+    # Adds a subplot at the 2nd position
+    fig.add_subplot(2, 2, 2)
+    # showing image
+    plt.imshow(im2)
+    plt.axis('off')
+    plt.title("pred")
+
+    fig.savefig('result.png')
+
+
+def get_result(net, album_name, t, args, classes_list):
+    tensor_batch, target, files, event = get_album(args, album_name, t)
+
+    with torch.no_grad():
+        event_output, output = net(tensor_batch)
+        output = torch.squeeze(torch.sigmoid(output))
+        event_output = torch.squeeze(torch.sigmoid(event_output))
+
+    np_eventoutput = event_output.cpu().detach().numpy()
+    idx_eventsort = np.argsort(-np_eventoutput)
+    # Top-k
+    detected_classes = np.array(classes_list)[idx_eventsort][: args.top_k]
+    scores_event = np_eventoutput[idx_eventsort][: args.top_k]
+    # Threshold
+    idx_event = scores_event > args.threshold
+    # detected_classes[idx_th], scores[idx_th]
+
+    np_output = output.cpu().detach().numpy()
+
+    idx_sort = np.argsort(-np_output)
+
+    idx_th = idx_sort[:int(len(files)*t / 100) + 1]
+
+    target_batch = torch.zeros(
+        len(target), args.input_size, args.input_size, 3)
+
+    for i in range(len(target)):
+        im = Image.open(os.path.join(
+            args.data_path, album_name, target[i] + '.jpg')).convert('RGB')
+        im_resize = im.resize((args.input_size, args.input_size))
+        np_img = np.array(im_resize, dtype=np.uint8)
+        target_batch[i] = torch.from_numpy(np_img).float() / 255.0
+    target_batch = target_batch.permute(0, 3, 1, 2).cuda()   # HWC to CHW
+    # tensor_images = torch.unsqueeze(tensor_images, 0).cuda()
+    montage_target = torchvision.utils.make_grid(
+        target_batch).permute(1, 2, 0).cpu()
+
+    pred = files[idx_th]
+    pred_batch = torch.zeros(
+        len(pred), args.input_size, args.input_size, 3)
+
+    for i in range(len(pred)):
+        im = Image.open(os.path.join(
+            args.data_path, album_name, pred[i] + '.jpg')).convert('RGB')
+        im_resize = im.resize((args.input_size, args.input_size))
+        np_img = np.array(im_resize, dtype=np.uint8)
+        pred_batch[i] = torch.from_numpy(np_img).float() / 255.0
+
+    pred_batch = pred_batch.permute(0, 3, 1, 2).cuda()   # HWC to CHW
+    # tensor_images = torch.unsqueeze(tensor_images, 0).cuda()
+    montage_pred = torchvision.utils.make_grid(
+        pred_batch).permute(1, 2, 0).cpu()
+
+    return montage_target, montage_pred, detected_classes[idx_event], event
 
 
 if __name__ == '__main__':

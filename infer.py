@@ -6,6 +6,8 @@ import torchvision.utils
 from PIL import Image
 import numpy as np
 from models.models import MTResnetAggregate
+import json
+import time
 
 
 # ----------------------------------------------------------------------
@@ -15,7 +17,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--model_path', type=str,
                     default='/content/drive2/checkpoints/event_importance_tresnet/version_2/checkpoints/best-epoch=119-mAP=67.21.ckpt')
 parser.add_argument('--album_path', type=str,
-                    default='../CUFED_split/images/test/0_11202221@N00')
+                    default='../CUFED_split/images/test/61_33988590@N00')
 parser.add_argument('--image_importance_pth', type=str,
                     default='../CUFED_split/image_importance.json')
 parser.add_argument('--event_type_pth', type=str,
@@ -48,6 +50,9 @@ parser.add_argument('--attention', type=str,
 def get_album(args):
 
     files = os.listdir(args.album_path)
+    album_name = args.album_path.rsplit('/', 1)[1]
+    cls_dict = json.load(open(args.event_type_pth))
+    event = cls_dict[album_name]
     n_files = len(files)
     idx_fetch = np.linspace(0, n_files-1, args.album_clip_length, dtype=int)
     tensor_batch = torch.zeros(
@@ -60,7 +65,7 @@ def get_album(args):
     tensor_batch = tensor_batch.permute(0, 3, 1, 2).cuda()   # HWC to CHW
     # tensor_images = torch.unsqueeze(tensor_images, 0).cuda()
     montage = torchvision.utils.make_grid(tensor_batch).permute(1, 2, 0).cpu()
-    return tensor_batch, montage
+    return tensor_batch, montage, event
 
 
 def inference(tensor_batch, model, classes_list, args):
@@ -76,7 +81,7 @@ def inference(tensor_batch, model, classes_list, args):
     return detected_classes[idx_th], scores[idx_th]
 
 
-def display_image(im, tags, filename, path_dest):
+def display_image(im, tags, event, filename, path_dest):
 
     if not os.path.exists(path_dest):
         os.makedirs(path_dest)
@@ -86,7 +91,7 @@ def display_image(im, tags, filename, path_dest):
     plt.axis('off')
     plt.axis('tight')
     plt.rcParams["axes.titlesize"] = 16
-    plt.title("Predicted classes: {}".format(tags))
+    plt.title("Predicted classes: {} \n True classes: {}".format(tags, event))
     plt.savefig(os.path.join(path_dest, filename))
 
 
@@ -105,6 +110,7 @@ def load_model(net, path):
 
 
 def main(classes_list):
+    start_time = time.time()
     args = parser.parse_args()
     # net = EventNetwork(encoder_name='resnet101', num_classes=args.num_classes).cuda()
     # net.eval()
@@ -113,13 +119,15 @@ def main(classes_list):
     net = load_model(net, args.model_path)
 
     # Get album
-    tensor_batch, montage = get_album(args)
+    tensor_batch, montage, event = get_album(args)
 
     # Inference
     tags, confs = inference(tensor_batch, net, classes_list, args)
 
+    print("--- %s seconds ---" % (time.time() - start_time))
+
     # Visualization
-    display_image(montage, tags, 'result.jpg', os.path.join(
+    display_image(montage, tags, event, 'result.jpg', os.path.join(
         args.path_output, args.album_path.rsplit('/')[1]).replace("./albums", ""))
 
     # Actual validation process

@@ -21,14 +21,16 @@ from options.train_options import TrainOptions
 parser = argparse.ArgumentParser(
     description='PETA: Photo album Event recognition using Transformers Attention.')
 parser.add_argument('--model_path', type=str,
-                    default='/content/drive2/checkpoints/event_transformer/version_42/checkpoints/best-epoch=02-mAP=51.20.ckpt')
+                    default='/content/drive2/checkpoints/event_importance_tresnet/version_2/checkpoints/best-epoch=119-mAP=67.21.ckpt')
 parser.add_argument('--album_path', type=str,
                     default='/home/ubuntu/datasets/CUFED/images/15_74648938@N00')
 # /Graduation') # /0_92024390@N00')
 parser.add_argument('---album_list', type=str,
-                        default='filenames/test.txt')
+                    default='filenames/train_multi.txt')
+parser.add_argument('---backbone', type=str,
+                    default='tresnet_m')
 parser.add_argument('--event_type_pth', type=str,
-                            default='../CUFED/event_type.json')
+                    default='../CUFED_split/event_type.json')
 parser.add_argument('--val_dir', type=str, default='./albums')
 parser.add_argument('--num_classes', type=int, default=23)
 parser.add_argument('--model_name', type=str, default='mtresnetaggregate')
@@ -46,16 +48,19 @@ parser.add_argument('--num_workers', type=int, default=0)
 parser.add_argument('--top_k', type=int, default=3)
 parser.add_argument('--threshold', type=float, default=0.85)
 parser.add_argument('--remove_model_jit', type=int, default=None)
-
+parser.add_argument('--attention', type=str,
+                    default='multihead')
+parser.add_argument('--infer', type=int, default=1)
 
 test_transform = T.Compose([
-        T.Resize((224, 224)),
-        T.ToTensor(),
-        T.Normalize(
-            mean=(0.485, 0.456, 0.406),
-            std=(0.229, 0.224, 0.225)
-        ),
-    ])
+    T.Resize((224, 224)),
+    T.ToTensor(),
+    T.Normalize(
+        mean=(0.485, 0.456, 0.406),
+        std=(0.229, 0.224, 0.225)
+    ),
+])
+
 
 def get_album(args):
 
@@ -68,17 +73,19 @@ def get_album(args):
     frames = []
     idx_fetch = np.linspace(0, n_files-1, 32, dtype=int)
     for i, id in enumerate(idx_fetch):
-        im = Image.open(os.path.join(args.album_path,files[id])).convert('RGB')
+        im = Image.open(os.path.join(
+            args.album_path, files[id])).convert('RGB')
         im = test_transform(im)
         frames.append(im)
-    
+
     # tensor_batch = tensor_batch.permute(0, 1, 2, 3)   # HWC to CHW
     tensor_batch = torch.unsqueeze(torch.stack(frames), 0).cuda()
     # montage = torchvision.utils.make_grid(tensor_batch).permute(1, 2, 0).cpu()
     return tensor_batch, event
 
+
 def plot_image(i, predictions_array, true_label, img, class_names):
-    img =  img[i]
+    img = img[i]
     plt.grid(False)
     plt.xticks([])
     plt.yticks([])
@@ -88,8 +95,9 @@ def plot_image(i, predictions_array, true_label, img, class_names):
     predicted_label = np.argmax(predictions_array)
 
     plt.xlabel("{} {:2.0f}% ({threshold})".format(class_names[predicted_label],
-                                    100*np.max(predictions_array),
-                                    true_label))
+                                                  100 *
+                                                  np.max(predictions_array),
+                                                  true_label))
 
 
 def inference(tensor_batch, model, classes_list, args):
@@ -113,7 +121,7 @@ def load_model(net, path):
     if path is not None and path.endswith(".ckpt"):
         print(path)
         state_dict = torch.load(path, map_location='cpu')
-    
+
         if "state_dict" in state_dict:
             state_dict = state_dict["state_dict"]
         compatible_state_dict = {}
@@ -124,7 +132,6 @@ def load_model(net, path):
         net.load_state_dict(compatible_state_dict)
 
     return net
-
 
 
 def main(classes_list):
@@ -149,7 +156,7 @@ def main(classes_list):
     # model.eval()
     # classes_list = np.array(list(state['idx_to_class'].values()))
     # print('Class list:', classes_list)
-    
+
     val_transform = T.Compose([
         T.Resize((224, 224)),
         T.ToTensor(),
@@ -159,19 +166,17 @@ def main(classes_list):
         # ),
 
     ])
-    
-    
-    ds = AlbumsDataset(data_path='../CUFED/images',album_list = args.album_list,
-                         transforms=val_transform, args=args)
-    
-    
-    dataloader = data.DataLoader(ds, batch_size= 1, num_workers= 4, shuffle=False)
+
+    ds = AlbumsDataset(data_path='../CUFED_split/images/train', album_list=args.album_list,
+                       transforms=val_transform, args=args)
+
+    dataloader = data.DataLoader(
+        ds, batch_size=1, num_workers=4, shuffle=False)
     acc = validate_model(net, dataloader, args.threshold)
     print(acc)
 
     # np_output = output.cpu().detach().numpy()
-    
-    
+
     # # np_output[np_output >= 0.5] = 1
     # # np_output[np_output < 0.5] = 0
     # # predict_label = np.where(np_output == 1)[1]
@@ -181,7 +186,7 @@ def main(classes_list):
     # # for i in range(len(batch)):
     # #     plt.subplot(6, 6, i+1)
     # #     plot_image(i, np_output[i], event, batch, classes_list)
-        
+
     # # plt.tight_layout()
     # # plt.savefig('result.png')
     # print(np_output)
@@ -194,28 +199,28 @@ def main(classes_list):
     # # Threshold
     # idx_th = scores > args.threshold
     # print(detected_classes[idx_th], scores[idx_th])
-        
+
     # tags, confs = inference(tensor_batch, net, classes_list, args)
 
     # Visualization
     # display_image(montage, tags, 'result.jpg', os.path.join(
     #     args.path_output, args.album_path).replace("./albums", ""))
-    
+
     # idx_sort = np.argsort(-np_output)
     # # # Top-k
     # detected_classes = np.array(classes_list)[idx_sort][:,:args.top_k]
     # print(detected_classes.shape)
     # scores = np.sort(np_output)[:,::-1][:,:args.top_k]
     # print(scores.shape)
-    
 
     # # # Threshold
     # idx_th = scores >= 0.5
     # print(detected_classes[idx_th])
     # print(scores[idx_th])
 
+
 def display_image(im, tags, filename, path_dest):
-    
+
     if not os.path.exists(path_dest):
         os.makedirs(path_dest)
 
@@ -226,11 +231,12 @@ def display_image(im, tags, filename, path_dest):
     plt.rcParams["axes.titlesize"] = 16
     plt.title("Predicted classes: {}".format(tags))
     plt.savefig(os.path.join(path_dest, filename))
-    
+
+
 if __name__ == '__main__':
     classes_list = ['Architecture', 'BeachTrip', 'Birthday', 'BusinessActivity',
-                  'CasualFamilyGather', 'Christmas', 'Cruise', 'Graduation', 'GroupActivity',
-                  'Halloween', 'Museum', 'NatureTrip', 'PersonalArtActivity',
-                  'PersonalMusicActivity', 'PersonalSports', 'Protest', 'ReligiousActivity',
-                  'Show', 'Sports', 'ThemePark', 'UrbanTrip', 'Wedding', 'Zoo']
+                    'CasualFamilyGather', 'Christmas', 'Cruise', 'Graduation', 'GroupActivity',
+                    'Halloween', 'Museum', 'NatureTrip', 'PersonalArtActivity',
+                    'PersonalMusicActivity', 'PersonalSports', 'Protest', 'ReligiousActivity',
+                    'Show', 'Sports', 'ThemePark', 'UrbanTrip', 'Wedding', 'Zoo']
     main(classes_list)
